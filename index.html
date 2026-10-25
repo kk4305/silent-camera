@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0c111b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="無音カメラ">
+  <meta name="description" content="写真を外部に送らないシンプルな無音カメラの試作品">
+  <title>無音カメラ | 試作版</title>
+  <style>
+    :root { color-scheme: dark; --bg: #0c111b; --panel:#182131; --white:#f5f7fd; --sub:#bac6d7; --accent:#c2e8ff; }
+    * {box-sizing:border-box}
+    html,body {margin:0; min-height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif;}
+    .app {max-width:680px; margin:0 auto; min-height:100svh; display:flex; flex-direction:column; padding:calc(env(safe-area-inset-top) + 14px) 15px calc(env(safe-area-inset-bottom) + 24px); gap:14px}
+    header {display:flex; justify-content:space-between; align-items:center; gap:12px}
+    h1 {font-size:20px; margin:0; font-weight:700; letter-spacing:.02em}
+    .tag {font-size:11px; padding:6px 10px; border-radius:100px; color:#c1ebd6; border:1px solid #386454; background:#1a3931; white-space:nowrap}
+    .camera {position:relative; width:100%; background:#111928; border:1px solid #293449; border-radius:17px; overflow:hidden; aspect-ratio:3/4; max-height:68svh; display:flex; align-items:center; justify-content:center}
+    video {width:100%; height:100%; object-fit:contain; display:none; background:#070b11}
+    .camera.running video {display:block}
+    .placeholder {position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; text-align:center; color:var(--sub); font-size:14px; padding:18px}
+    .placeholder .emoji {font-size:42px}
+    .camera.running .placeholder {display:none}
+    .res {position:absolute; top:12px; left:12px; background:#000a; color:#fff; font-size:12px; border-radius:9px; padding:7px 10px; display:none; font-variant-numeric:tabular-nums}
+    .camera.running .res {display:block}
+    .controls {display:flex; gap:10px; align-items:center; justify-content:center; flex-wrap:wrap}
+    button {border:0; border-radius:12px; background:var(--panel); color:var(--white); padding:13px 17px; min-height:46px; font-size:15px; font-weight:650; cursor:pointer}
+    button:disabled {opacity:.35; cursor:not-allowed}
+    .primary {background:var(--accent);color:#102031}
+    .shutter {height:74px; width:74px; border:5px solid var(--white); background:#edf7ff; box-shadow:inset 0 0 0 5px #233349; border-radius:50%; padding:0; min-width:74px}
+    .shutter:active {transform:scale(.96)}
+    .shutter:disabled {opacity:.4}
+    .status {min-height:20px; font-size:13px; color:var(--sub); text-align:center; line-height:1.5}
+    .preview {display:none; background:#121c2b; border-radius:15px; padding:12px; gap:12px; border:1px solid #2d3c52}
+    .preview.visible {display:flex; align-items:center}
+    .preview img {width:100px; height:100px; object-fit:cover; border-radius:10px; background:black; flex-shrink:0}
+    .preview-info {min-width:0; display:flex; gap:8px; flex-direction:column; align-items:flex-start}
+    .preview-info strong {font-size:15px}
+    .preview-info small {font-size:12px; color:var(--sub); line-height:1.45}
+    .preview-actions {display:flex; flex-wrap:wrap; gap:8px}
+    .preview-actions button {padding:9px 11px; min-height:38px; font-size:13px}
+    .hint {background:#131c2b; border:1px solid #28354b; border-radius:12px; padding:12px 14px; color:var(--sub); font-size:12px; line-height:1.65}
+    .hint strong {color:#e2e9f5}
+    a {color:var(--accent)}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header><h1>📷 無音カメラ</h1><span class="tag">試作 v1 ・外部送信なし</span></header>
+    <section class="camera" id="camera" aria-label="カメラのプレビュー">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="placeholder"><span class="emoji">📸</span><span>「カメラを起動」を押して<br>アクセスを許可してね</span></div>
+      <div class="res" id="resolution" aria-live="polite"></div>
+    </section>
+    <div class="controls">
+      <button type="button" id="start" class="primary">カメラを起動</button>
+      <button type="button" id="shutter" class="shutter" aria-label="音を出さずに撮影" disabled></button>
+      <button type="button" id="stop" disabled>停止</button>
+    </div>
+    <div class="status" id="status" role="status">初回はSafariのカメラ使用許可が必要だよ。</div>
+    <section class="preview" id="preview">
+      <img id="photo" alt="撮影した写真のプレビュー">
+      <div class="preview-info">
+        <strong>撮影できたよ！</strong>
+        <small id="photoResolution"></small>
+        <div class="preview-actions">
+          <button type="button" id="share" class="primary">写真に保存・共有</button>
+          <button type="button" id="download">ファイル保存</button>
+        </div>
+      </div>
+    </section>
+    <aside class="hint">
+      <strong>使い方：</strong>起動 → 真ん中の丸いボタンで撮影 → 「写真に保存・共有」からiPhoneの「画像を保存」を選択。<br>
+      カメラの動画フレームを画像化するので、通常は撮影音を鳴らさない方式だよ。<strong>純正カメラ同等の画質・48MPは保証できない</strong>ので、StageCameraHDと同じ場面で比べてみてね。<br>
+      <strong>プライバシー：</strong>撮影画像を外部サーバーへ送らない設計。ページのソースコードは公開されるけど、撮った写真は公開されないよ。
+    </aside>
+  </main>
+  <script>
+    'use strict';
+    const $ = id => document.getElementById(id);
+    const video = $('video');
+    const camera = $('camera');
+    const startBtn = $('start');
+    const shutterBtn = $('shutter');
+    const stopBtn = $('stop');
+    const shareBtn = $('share');
+    const downloadBtn = $('download');
+    const status = $('status');
+    let stream = null;
+    let photoFile = null;
+    let photoURL = null;
+    const message = text => { status.textContent = text; };
+
+    async function startCamera() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        message('このブラウザではカメラを使えません。SafariのHTTPSページで開いてね。');
+        return;
+      }
+      startBtn.disabled = true;
+      message('カメラを起動中…');
+      try {
+        // 「ideal」なので実機で対応可能なモードに自動調整される。
+        const constraints = { audio:false, video: {
+          facingMode: {ideal:'environment'},
+          width: {ideal:4032}, height: {ideal:3024}, aspectRatio:{ideal:4/3},
+          frameRate: {ideal:30}
+        }};
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (firstError) {
+          if (firstError.name === 'NotAllowedError' || firstError.name === 'SecurityError') throw firstError;
+          stream = await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'environment'}});
+        }
+        video.srcObject = stream;
+        await video.play();
+        camera.classList.add('running');
+        shutterBtn.disabled = false;
+        stopBtn.disabled = false;
+        const w = video.videoWidth, h = video.videoHeight;
+        $('resolution').textContent = `${w} × ${h}（映像フレーム）`;
+        message('準備OK！ 真ん中の丸いボタンで撮影してね。');
+      } catch (error) {
+        startBtn.disabled = false;
+        if (error.name === 'NotAllowedError' || error.name === 'SecurityError') {
+          message('カメラを使う許可が必要だよ。Safariのサイト設定でカメラを許可してね。');
+        } else if (error.name === 'NotFoundError') {
+          message('カメラが見つからなかったよ。');
+        } else {
+          message(`起動できなかったよ（${error.name || '不明なエラー'}）。Safariで開き直してみてね。`);
+        }
+      }
+    }
+
+    function stopCamera() {
+      if (stream) stream.getTracks().forEach(track => track.stop());
+      stream = null;
+      video.pause();
+      video.srcObject = null;
+      camera.classList.remove('running');
+      startBtn.disabled = false;
+      shutterBtn.disabled = true;
+      stopBtn.disabled = true;
+      message('カメラを停止したよ。');
+    }
+
+    async function capture() {
+      if (!stream || !video.videoWidth || !video.videoHeight) {
+        message('先にカメラを起動してね。');
+        return;
+      }
+      shutterBtn.disabled = true;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const ctx = canvas.getContext('2d', {alpha:false});
+        if (!ctx) throw new Error('canvasが利用できません');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+        if (!blob) throw new Error('画像の作成に失敗しました');
+        const now = new Date();
+        const stamp = [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('') + '_' +
+          [now.getHours(), now.getMinutes(), now.getSeconds()].map(x => String(x).padStart(2,'0')).join('');
+        photoFile = new File([blob], `SilentCamera_${stamp}.jpg`, {type:'image/jpeg'});
+        if (photoURL) URL.revokeObjectURL(photoURL);
+        photoURL = URL.createObjectURL(blob);
+        $('photo').src = photoURL;
+        $('photoResolution').textContent = `${canvas.width} × ${canvas.height}（約${(canvas.width * canvas.height / 1e6).toFixed(1)}MP）`;
+        $('preview').classList.add('visible');
+        message('無音方式でフレームを保存したよ。写真アプリには共有メニューから保存してね。');
+      } catch (error) {
+        message(`撮影に失敗したよ：${error.message}`);
+      } finally {
+        shutterBtn.disabled = !stream;
+      }
+    }
+
+    async function share() {
+      if (!photoFile) return;
+      if (navigator.share && (!navigator.canShare || navigator.canShare({files:[photoFile]}))) {
+        try {
+          await navigator.share({files:[photoFile]});
+          message('共有メニューを閉じたよ。写真アプリへ保存したか確認してね。');
+        } catch (error) {
+          if (error.name !== 'AbortError') message('共有できなかったよ。「ファイル保存」を試してね。');
+        }
+      } else {
+        message('この環境では画像共有に対応していないよ。「ファイル保存」を試してね。');
+      }
+    }
+
+    function download() {
+      if (!photoFile || !photoURL) return;
+      const link = document.createElement('a');
+      link.href = photoURL;
+      link.download = photoFile.name;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      message('Safariのダウンロード先を確認してね。写真アプリへの直接保存ではないよ。');
+    }
+
+    startBtn.addEventListener('click', startCamera);
+    stopBtn.addEventListener('click', stopCamera);
+    shutterBtn.addEventListener('click', capture);
+    shareBtn.addEventListener('click', share);
+    downloadBtn.addEventListener('click', download);
+    window.addEventListener('pagehide', () => {if (stream) stopCamera();});
+  </script>
+</body>
+</html>
