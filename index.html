@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Silent Camera">
-<title>Silent Camera v4.1</title>
+<title>Silent Camera v5</title>
 <style>
 :root{color-scheme:dark;--bg:#0b101a;--panel:#192536;--fg:#f5f7fa;--muted:#b9c7d6;--accent:#b5e7ff;--line:#2e3b51}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
@@ -49,7 +49,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 </head>
 <body>
 <main class="app">
-<header><h1>📷 Silent Camera</h1><span class="tag">v4.1 · 外部送信なし</span></header>
+<header><h1>📷 Silent Camera</h1><span class="tag">v5 · 外部送信なし</span></header>
 <div class="modebar" role="group" aria-label="撮影タイプ"><button id="photoMode" class="active" type="button">📷 写真</button><button id="videoMode" type="button">🎥 動画</button></div>
 <section id="view" class="view" aria-label="カメラ映像">
 <video id="live" autoplay playsinline muted></video>
@@ -68,14 +68,15 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 <div class="zoom-note" id="zoomNote">0.5×はSafariが超広角を公開している場合のみ使えるよ。</div>
 <div class="selectrow"><label for="cameraSelect">使用カメラ</label><select id="cameraSelect"><option value="rear">背面（標準）</option><option value="front">前面（自撮り）</option></select></div>
 <div class="selectrow" id="qualitySetting"><label for="quality">画質</label><select id="quality"><option value="high">高画質優先</option><option value="standard">標準</option></select></div>
-<div class="selectrow" id="videoResSetting" hidden><label for="videoRes">動画画素数</label><select id="videoRes"><option value="standard">従来指定（1920×1080）</option><option value="portrait">縦向き指定（1080×1920）</option></select></div>
+<div class="selectrow" id="recordMethodSetting" hidden><label for="recordMethod">録画方式</label><select id="recordMethod"><option value="canvas">新方式：映像を描画して録画（1080p目標）</option><option value="direct">従来方式：カメラを直接録画</option></select></div>
+<div class="selectrow" id="videoResSetting" hidden><label for="videoRes">入力解像度</label><select id="videoRes"><option value="standard">従来指定（1920×1080）</option><option value="portrait">縦向き指定（1080×1920）</option></select></div>
 <div class="selectrow" id="formatSetting"><label for="format">写真保存</label><select id="format"><option value="jpeg">JPEG（品質98%）</option><option value="png">PNG（無劣化）</option></select></div>
 <label class="checkline" id="audioSetting" hidden><span>動画にマイク音声を入れる（シャッター音とは別）</span><input type="checkbox" id="audio" checked></label>
 <div class="row"><button type="button" id="grid">グリッド：OFF</button><button type="button" id="fit">表示：画面いっぱい</button><button type="button" id="refresh">カメラ候補を再取得</button></div>
 <div id="status" class="status" role="status">Safariでカメラへのアクセスを許可してね。</div>
 <section class="diagnostics"><div><strong>撮影情報</strong><small id="diagnosticText">起動後にカメラ名・映像解像度・ズーム方式などを確認できるよ。</small></div><button type="button" id="copy" disabled>結果をコピー</button></section>
 <section class="preview" id="preview"><img id="photo" alt="撮影した写真のプレビュー"><video id="clip" controls playsinline preload="metadata"></video><div class="preview-info"><strong id="previewTitle">撮影できたよ！</strong><small id="fileInfo"></small><div class="preview-actions"><button type="button" id="share" class="primary">保存・共有</button><button type="button" id="download">ファイル保存</button></div></div></section>
-<aside class="hint"><b>カメラの切り替え：</b>「使用カメラ」にSafariが認識した候補を表示するよ。超広角・望遠が個別に出ていれば選べるけど、iPhoneのSafariではレンズを個別に公開しない場合があるの。2×以上は光学ズームと限らず、非対応時は写真のみデジタル拡大になるよ。<br><b>動画画素数：</b>「従来指定」と「縦向き指定」はSafariへの希望解像度。動画コーデックは高解像度向けを優先し、非対応なら自動的にフォールバック。実際の録画サイズは撮影後に解析して表示するよ。iPhone側の制限により一致しない場合もあるの。<br><b>プレビュー：</b>「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
+<aside class="hint"><b>カメラの切り替え：</b>「使用カメラ」にSafariが認識した候補を表示するよ。超広角・望遠が個別に出ていれば選べるけど、iPhoneのSafariではレンズを個別に公開しない場合があるの。2×以上は光学ズームと限らず、非対応時は写真のみデジタル拡大になるよ。<br><b>録画方式：</b>新方式はカメラ映像を1080×1920（縦向き時）のCanvasに描画して録画するテスト。Safariによっては縮小・黒画面・フレーム落ちになることもあるよ。その場合は従来方式に切り替えてね。<br><b>入力解像度：</b>Safariへの希望値で、保存画質は別。録画後の実解像度を確認してね。<br><b>プレビュー：</b>「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
 </main>
 <script>
 'use strict';
@@ -86,6 +87,7 @@ const shareBtn=$('share'),downloadBtn=$('download');
 let stream=null, micStream=null, recorder=null, videoChunks=[], recStart=0, timer=null;
 let shooting='photo', selectedZoom=1, zoomMethod='なし', recording=false;
 let currentFile=null, currentURL=null, diagnostics='', knownDevices=[], startBusy=false;
+let canvasStream=null, recCanvas=null, frameRequest=0, drawnFrames=0, recordingMethod='direct', lastCanvasDims='なし';
 const status = s => $('status').textContent=s;
 const mp=(w,h)=>((w*h)/1e6).toFixed(2);
 const stamp=()=>{let d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,'0')).join('')}`};
@@ -96,7 +98,7 @@ function cameraName(){return cameraSelect.selectedOptions[0]?.textContent||'不�
 function setButtons(){
  const active=!!stream, busy=recording||startBusy;
  startBtn.disabled=active||busy;stopBtn.disabled=!active||busy;shutter.disabled=!active||startBusy;
- cameraSelect.disabled=busy; $('quality').disabled=busy;$('videoRes').disabled=busy; $('refresh').disabled=busy;
+ cameraSelect.disabled=busy; $('quality').disabled=busy;$('videoRes').disabled=busy;$('recordMethod').disabled=busy; $('refresh').disabled=busy;
  $('photoMode').disabled=busy;$('videoMode').disabled=busy;
  $('format').disabled=recording; $('audio').disabled=recording;
  for(const b of document.querySelectorAll('[data-zoom]')) b.disabled=busy||!active||((Number(b.dataset.zoom)<1)&&!canZoom(0.5));
@@ -139,7 +141,7 @@ async function startCamera(){
   if(settings.deviceId&&cameraSelect.value.startsWith('device:')===false){ /* 選択は「標準」のまま */ }
   $('resolution').textContent=`${live.videoWidth}×${live.videoHeight} (${mp(live.videoWidth,live.videoHeight)}MP)`;
   selectedZoom=1;zoomMethod='なし';updateZoomButtons();
-  diagnostics=`Silent Camera v4.1\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
+  diagnostics=`Silent Camera v5\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
   $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／${caps().zoom?'ズームAPI対応':'ズームAPI非公開'}`;
   $('copy').disabled=false;
   status('起動できたよ！ カメラ候補の一覧とズームボタンを確認してね。');
@@ -189,41 +191,103 @@ function chooseMime(){if(typeof MediaRecorder==='undefined')return null;
  for(const t of ['video/mp4;codecs=avc1.640028,mp4a.40.2','video/mp4;codecs=avc1.640028','video/mp4','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1.42E01E','video/webm;codecs=vp8,opus','video/webm']){try{if(MediaRecorder.isTypeSupported(t))return t}catch{}}
  return '';
 }
+function stopCanvasCapture(){
+ if(frameRequest){cancelAnimationFrame(frameRequest);frameRequest=0}
+ if(canvasStream){canvasStream.getTracks().forEach(t=>t.stop());canvasStream=null}
+ recCanvas=null;
+}
+function createCanvasCapture(){
+ if(typeof HTMLCanvasElement==='undefined' || !HTMLCanvasElement.prototype.captureStream)throw new Error('SafariがCanvas録画に未対応です');
+ const srcW=live.videoWidth,srcH=live.videoHeight;
+ if(!srcW||!srcH)throw new Error('カメラ映像のサイズがまだ取得できません');
+ const portrait=srcH>=srcW;
+ const w=portrait?1080:1920,h=portrait?1920:1080;
+ recCanvas=document.createElement('canvas');recCanvas.width=w;recCanvas.height=h;
+ const ctx=recCanvas.getContext('2d',{alpha:false,desynchronized:true});
+ if(!ctx)throw new Error('Canvasの描画を開始できません');
+ let prev=0;
+ drawnFrames=0;
+ function draw(ts){
+  if(!recCanvas)return;
+  // カメラの縦横比が一致しなくても映像を引き伸ばさず中央をトリミング
+  if(!prev||ts-prev>=30){
+   try{
+    const srcRatio=srcW/srcH,targetRatio=w/h;
+    let sx=0,sy=0,sw=srcW,sh=srcH;
+    if(srcRatio>targetRatio){sw=srcH*targetRatio;sx=(srcW-sw)/2}
+    else if(srcRatio<targetRatio){sh=srcW/targetRatio;sy=(srcH-sh)/2}
+    ctx.drawImage(live,sx,sy,sw,sh,0,0,w,h);
+    drawnFrames++;prev=ts;
+   }catch(e){console.warn('Canvas frame:',e)}
+  }
+  frameRequest=requestAnimationFrame(draw);
+ }
+ // 先に最初のフレームを描画し、空白のCanvasを録画しないようにする
+ ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+ ctx.drawImage(live,0,0,srcW,srcH,0,0,w,h);
+ drawnFrames++;
+ canvasStream=recCanvas.captureStream(30);
+ if(!canvasStream.getVideoTracks().length){stopCanvasCapture();throw new Error('Canvas映像トラックを取得できません')}
+ frameRequest=requestAnimationFrame(draw);
+ lastCanvasDims=`${w}×${h}`;
+ return new MediaStream(canvasStream.getVideoTracks());
+}
 async function startRecording(){
  if(!stream||recording)return;
  if(typeof MediaRecorder==='undefined'){status('このSafariでは動画録画APIが使えないよ。');return;}
- const mime=chooseMime();let audioStatus='マイクOFF';const sourceW=live.videoWidth,sourceH=live.videoHeight;let recordingStream=new MediaStream(stream.getVideoTracks());
- if($('audio').checked){
-  try{micStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});micStream.getAudioTracks().forEach(t=>recordingStream.addTrack(t));audioStatus='マイクON'}
-  catch(e){audioStatus='マイク利用不可';status('マイクが使えないので、無音声動画として録画するよ。')}
- }
+ const mime=chooseMime();
+ const audioWanted=$('audio').checked;
+ let audioStatus='マイクOFF';
+ const sourceW=live.videoWidth,sourceH=live.videoHeight;
+ recordingMethod=$('recordMethod').value;
+ let recordingStream=null;
  try{
+  if(recordingMethod==='canvas')recordingStream=createCanvasCapture();
+  else{recordingStream=new MediaStream(stream.getVideoTracks());lastCanvasDims='使用せず';drawnFrames=0}
+  if(audioWanted){
+   try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+    micStream.getAudioTracks().forEach(t=>recordingStream.addTrack(t));audioStatus='マイクON';
+   }catch(e){audioStatus='マイク利用不可';status('マイクが使えないので、音声なしで録画するよ。')}
+  }
+  const trackSettings=recordingStream.getVideoTracks()[0]?.getSettings?.()||{};
+  const captureDims=`${trackSettings.width||'?'}×${trackSettings.height||'?'}`;
   let options={videoBitsPerSecond:12000000};if(mime)options.mimeType=mime;
   try{recorder=new MediaRecorder(recordingStream,options)}
   catch{recorder=new MediaRecorder(recordingStream)}
   videoChunks=[];
   recorder.ondataavailable=e=>{if(e.data?.size)videoChunks.push(e.data)};
   recorder.onerror=e=>{status('動画の録画中にエラーが発生したよ。');console.warn(e)};
+  const methodForFile=recordingMethod==='canvas'?'Canvas録画':'直接録画';
+  const canvasDimsForFile=lastCanvasDims;
   recorder.onstop=()=>{
    clearInterval(timer);timer=null;$('recTag').classList.remove('on');
+   const frames=drawnFrames;
    const realMime=recorder.mimeType||mime||'video/mp4';const ext=realMime.includes('webm')?'webm':'mp4';
    const blob=new Blob(videoChunks,{type:realMime});videoChunks=[];
-   if(blob.size){const file=new File([blob],`SilentCamera_${stamp()}.${ext}`,{type:realMime});
-    showFile(file,'video',`入力${sourceW}×${sourceH}／保存解像度を解析中／${(file.size/1048576).toFixed(2)}MB／${ext.toUpperCase()}／${audioStatus}`);
-    diagnostics+=`\n録画元：${sourceW}×${sourceH} ／ 保存動画解析中 ／ ${ext.toUpperCase()}／${(file.size/1048576).toFixed(2)}MB／${audioStatus}`;
-    status('録画できたよ！ 「保存・共有」からビデオ保存を試してね。');
-   }else{status('録画データが空だったよ。もう一度試してね。')}
+   stopCanvasCapture();
+   if(blob.size){
+    const file=new File([blob],`SilentCamera_${stamp()}.${ext}`,{type:realMime});
+    showFile(file,'video',`${methodForFile}／入力${sourceW}×${sourceH}／保存解像度を解析中／${(file.size/1048576).toFixed(2)}MB／${audioStatus}`);
+    diagnostics+=`\n録画方式：${methodForFile}\n入力映像：${sourceW}×${sourceH}\n録画用トラック：${captureDims}\nCanvas：${canvasDimsForFile}\n描画回数：${frames}\nファイル：${ext.toUpperCase()} ${(file.size/1048576).toFixed(2)}MB／${audioStatus}`;
+    status('録画が終了したよ。保存動画の実解像度が出たら「結果をコピー」してね。');
+   }else status('録画データが空だったよ。「従来方式」を試してね。');
    if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
-   recorder=null;
+   recorder=null;setButtons();
   };
   recorder.start();recording=true;recStart=Date.now();$('recTag').classList.add('on');
-  $('recordTime').textContent='00:00';timer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('recordTime').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`},250);
-  status(`動画の録画中（${audioStatus}）。赤いボタンで停止してね。`);
- }catch(e){if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}recorder=null;status(`録画を開始できなかったよ：${e.message}`)}
- finally{setButtons()}
+  $('recordTime').textContent='00:00';
+  timer=setInterval(()=>{const t=Math.floor((Date.now()-recStart)/1000);$('recordTime').textContent=`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`},250);
+  diagnostics+=`\n録画テスト開始：${recordingMethod==='canvas'?'Canvas 1080p':'直接'}／入力${sourceW}×${sourceH}／トラック${captureDims}`;
+  status(`${methodForFile}の録画中（${audioStatus}）。赤いボタンで停止してね。`);
+ }catch(e){
+  stopCanvasCapture();
+  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
+  recorder=null;status(`録画開始失敗：${e.message}。新方式の場合は従来方式を試してね。`)
+ }finally{setButtons()}
 }
 function stopRecording(){if(!recorder||!recording)return;recording=false;clearInterval(timer);timer=null;try{recorder.stop();status('動画を保存用に処理しているよ…')}catch(e){status(`録画停止エラー：${e.message}`)}setButtons()}
-async function switchMode(next){if(recording)return;shooting=next;$('photoMode').classList.toggle('active',shooting==='photo');$('videoMode').classList.toggle('active',shooting==='video');$('formatSetting').hidden=shooting!=='photo';$('videoResSetting').hidden=shooting!=='video';$('audioSetting').hidden=shooting!=='video';view.classList.toggle('video-view',shooting==='video');
+async function switchMode(next){if(recording)return;shooting=next;$('photoMode').classList.toggle('active',shooting==='photo');$('videoMode').classList.toggle('active',shooting==='video');$('formatSetting').hidden=shooting!=='photo';$('videoResSetting').hidden=shooting!=='video';$('recordMethodSetting').hidden=shooting!=='video';$('audioSetting').hidden=shooting!=='video';view.classList.toggle('video-view',shooting==='video');
  shutter.classList.toggle('video-button',shooting==='video');if(stream)await startCamera();else{setButtons();status(shooting==='video'?'動画モード。起動後、赤いボタンで録画できるよ。':'写真モード。起動後、白いボタンで無音撮影できるよ。')}}
 async function shareFile(){if(!currentFile)return;try{if(!navigator.share||navigator.canShare&&!navigator.canShare({files:[currentFile]}))throw Error('共有未対応');await navigator.share({files:[currentFile]});status('共有メニューを閉じたよ。写真・ビデオが保存されたか確認してね。')}catch(e){if(e.name!=='AbortError')status('共有できなかったよ。「ファイル保存」を試してね。')}}
 function downloadFile(){if(!currentURL||!currentFile)return;let a=document.createElement('a');a.href=currentURL;a.download=currentFile.name;document.body.appendChild(a);a.click();a.remove();status('Safariの「ダウンロード」フォルダを確認してね。')}
@@ -236,6 +300,7 @@ $('videoMode').addEventListener('click',()=>switchMode('video'));
 cameraSelect.addEventListener('change',async()=>{if(stream)await startCamera();else status('カメラを選んだよ。起動して試してね。')});
 $('quality').addEventListener('change',async()=>{if(stream)await startCamera()});
 $('videoRes').addEventListener('change',async()=>{if(stream)await startCamera()});
+$('recordMethod').addEventListener('change',()=>{status($('recordMethod').value==='canvas'?'新方式：1080pのCanvas録画を試すよ。':'従来方式：カメラから直接録画するよ。')});
 $('refresh').addEventListener('click',async()=>{let n=await listDevices();status(`${n}個のカメラ候補が見つかったよ。超広角・望遠が一覧に出るか確認してね。`)});
 $('grid').addEventListener('click',()=>{let on=view.classList.toggle('grid-on');$('grid').textContent=`グリッド：${on?'ON':'OFF'}`});
 $('fit').addEventListener('click',()=>{let full=!view.classList.toggle('show-entire');$('fit').textContent=full?'表示：画面いっぱい':'表示：全体';status(full?'画面を埋めるため端が少し切れる場合があるよ。':'全体表示では黒い余白が残る場合があるよ。');});
@@ -248,11 +313,11 @@ $('clip').addEventListener('loadedmetadata',()=>{
   $('fileInfo').textContent=`保存 ${w}×${h} (${mp(w,h)}MP)／${(currentFile.size/1048576).toFixed(2)}MB／${currentFile.name.split('.').pop().toUpperCase()}`;
   diagnostics+=`\n保存動画の実解像度：${w}×${h} (${mp(w,h)}MP)`;
   $('diagnosticText').textContent=`録画ファイル ${w}×${h}（${mp(w,h)}MP）／元映像 ${live.videoWidth}×${live.videoHeight}`;
-  status(`録画保存成功：${w}×${h}。元映像と差があれば「動画画素数」の切り替えを試してね。`);
+  status(`録画保存：${w}×${h}。録画方式による解像度の違いを確認してね。`);
  }
 });
 shareBtn.addEventListener('click',shareFile);downloadBtn.addEventListener('click',downloadFile);$('copy').addEventListener('click',copyInfo);
-window.addEventListener('pagehide',()=>{if(recording)stopRecording();if(stream)stopTracks();if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}});
+window.addEventListener('pagehide',()=>{if(recording)stopRecording();if(stream)stopTracks();stopCanvasCapture();if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}});
 setButtons();
 </script>
 </body>
