@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Silent Camera">
-<title>Silent Camera v7 · 麺撮影</title>
+<title>Silent Camera v7.1 · 麺撮影</title>
 <style>
 :root{color-scheme:dark;--bg:#0b101a;--panel:#192536;--fg:#f5f7fa;--muted:#b9c7d6;--accent:#b5e7ff;--line:#2e3b51}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
@@ -116,10 +116,10 @@ body.noodle-mode .view-actions .shutter:focus-visible{outline:3px solid #b5e7ff;
 </head>
 <body>
 <main class="app">
-<header><h1>🍜 Silent Camera</h1><span class="tag">v7 · 麺撮影</span></header>
+<header><h1>🍜 Silent Camera</h1><span class="tag">v7.1 · 麺撮影</span></header>
 <div class="modebar" role="group" aria-label="撮影モード"><button id="noodleMode" class="active" type="button">🍜 麺撮影</button><button id="normalMode" type="button">📷 通常カメラ</button></div>
 <div class="modebar submodes" id="standardModes" hidden role="group" aria-label="通常撮影タイプ"><button id="photoMode" class="active" type="button">写真</button><button id="videoMode" type="button">動画</button></div>
-<div class="noodle-intro" id="noodleIntro"><span id="noodleLens">0.5× 超広角を準備中</span><span>縦9:16 · 30fps · 音声ON</span></div>
+<div class="noodle-intro" id="noodleIntro"><span id="noodleLens">0.5× 超広角を準備中</span><span id="micReadyText">縦9:16 · 30fps · 音声準備中</span></div>
 <section id="view" class="view" aria-label="カメラ映像">
 <video id="live" autoplay playsinline muted></video>
 <canvas id="monitor" aria-hidden="true"></canvas>
@@ -173,7 +173,9 @@ const $ = id => document.getElementById(id);
 const live = $('live'), view=$('view'), monitor=$('monitor'), cameraSelect=$('cameraSelect');
 const startBtn=$('start'),stopBtn=$('stop'),shutter=$('shutter');
 const shareBtn=$('share'),downloadBtn=$('download');
-let stream=null, micStream=null, recorder=null, videoChunks=[], recStart=0, timer=null;
+let stream=null, micStream=null, micPreparing=null, recorder=null, videoChunks=[], recStart=0, timer=null;
+let recordingStarting=false, recordRequestAt=0, startCommandMs=0, recorderStartMs=0;
+let micGeneration=0, preparedRecorder=null, preparedKey='';
 let shooting='video', mode='noodle', noodleLensBusy=false, noodleRequest=0, selectedZoom=1, zoomMethod='なし', recording=false;
 let currentFile=null, currentURL=null, diagnostics='', knownDevices=[], startBusy=false;
 let canvasStream=null, recCanvas=null, frameRequest=0, drawnFrames=0, recordingMethod='direct', lastCanvasDims='なし';
@@ -197,12 +199,12 @@ function track(){return stream&&stream.getVideoTracks()[0]}
 function caps(){try{return track()?.getCapabilities?.()||{}}catch{return {}}}
 function cameraName(){return cameraSelect.selectedOptions[0]?.textContent||'不明'}
 function setButtons(){
- const active=!!stream, busy=recording||startBusy;
- startBtn.disabled=active||busy;stopBtn.disabled=!active||busy;shutter.disabled=!active||startBusy;
+ const active=!!stream, busy=recording||startBusy||recordingStarting;
+ startBtn.disabled=active||busy;stopBtn.disabled=!active||busy;shutter.disabled=!active||startBusy||recordingStarting;
  cameraSelect.disabled=busy; $('quality').disabled=busy;$('videoRes').disabled=busy;$('recordMethod').disabled=busy; $('refresh').disabled=busy;
  $('photoMode').disabled=busy;$('videoMode').disabled=busy; $('noodleMode').disabled=busy;$('normalMode').disabled=busy;
  $('format').disabled=recording; $('audio').disabled=recording;
- $('settings').style.pointerEvents=recording?'none':''; $('settings').style.opacity=recording?'.5':'';
+ $('settings').style.pointerEvents=(recording||recordingStarting)?'none':''; $('settings').style.opacity=(recording||recordingStarting)?'.5':'';
  for(const b of document.querySelectorAll('[data-zoom]')) b.disabled=busy||!active||((Number(b.dataset.zoom)<1)&&!canZoom(0.5));
  shutter.classList.toggle('video-button',shooting==='video');shutter.classList.toggle('recording',recording);
  shutter.setAttribute('aria-label',recording?'動画録画を停止':shooting==='video'?'動画録画を開始':'写真を撮影');
@@ -222,7 +224,7 @@ function setLensButtons(){
  for(const b of document.querySelectorAll('[data-lens]')){
   const type=b.dataset.lens;
   b.classList.toggle('selected',lens===type);
-  b.disabled=recording||startBusy||(type!=='standard'&&!findPhysicalLens(type));
+  b.disabled=recording||startBusy||recordingStarting||(type!=='standard'&&!findPhysicalLens(type));
  }
 }
 async function chooseLens(type){
@@ -286,8 +288,59 @@ function startPreviewPump(){
  // Schedule video rendering after live.play(). Crop and display the frame ourselves.
  previewFrame=requestAnimationFrame(drawPreview);
 }
-function stopTracks(){ stopPreviewPump();if(stream){for(const t of stream.getTracks())t.stop()}stream=null; if(micStream){for(const t of micStream.getTracks())t.stop()}micStream=null;live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';}
-function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}wantCamera=false;clearTimeout(resumeTimer);stopTracks();setButtons();if(show)status('カメラを停止したよ。');}
+function micReady(){return !!micStream && micStream.getAudioTracks().some(t=>t.readyState==='live'&&!t.muted)}
+function micLabel(s){const el=$('micReadyText');if(el)el.textContent=s}
+function invalidatePrepared(){preparedRecorder=null;preparedKey=''}
+function stopMicrophone(){
+ micGeneration++;invalidatePrepared();
+ if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
+ micPreparing=null;
+ micLabel('縦9:16 · 30fps · 音声OFF');
+}
+async function warmMicrophone(){
+ if(!$('audio').checked || shooting!=='video' || !stream || !wantCamera || recording)return false;
+ if(micReady())return true;
+ if(micPreparing)return micPreparing;
+ if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
+ const generation=micGeneration;
+ micLabel('縦9:16 · 30fps · 音声準備中');
+ const pending=navigator.mediaDevices.getUserMedia({audio:true,video:false}).then(s=>{
+  if(generation!==micGeneration || !wantCamera || !$('audio').checked){s.getTracks().forEach(t=>t.stop());return false}
+  micStream=s;
+  micLabel('縦9:16 · 30fps · 🎤準備OK');
+  prepareRecorder();
+  return true;
+ }).catch(e=>{
+  micLabel('縦9:16 · 30fps · マイク要確認');
+  console.warn('Microphone preflight:', e);
+  return false;
+ }).finally(()=>{if(micPreparing===pending)micPreparing=null});
+ micPreparing=pending;
+ return pending;
+}
+function makeRecorder(source){
+ const mime=chooseMime();const options={videoBitsPerSecond:12000000};if(mime)options.mimeType=mime;
+ try{return new MediaRecorder(source,options)}catch{return new MediaRecorder(source)}
+}
+function prepareRecorder(){
+ invalidatePrepared();
+ if(!stream||!wantCamera||recording||recordingStarting||$('recordMethod').value!=='direct'||shooting!=='video')return;
+ if($('audio').checked&&!micReady())return;
+ try{
+  const tracks=[...stream.getVideoTracks()];
+  if($('audio').checked)tracks.push(...micStream.getAudioTracks().filter(t=>t.readyState==='live'));
+  const preparedStream=new MediaStream(tracks);
+  const r=makeRecorder(preparedStream);
+  preparedRecorder=r;
+  preparedKey=`${stream.getVideoTracks()[0]?.id||''}|${$('audio').checked?'mic':'silent'}`;
+ }catch(e){invalidatePrepared();console.warn('Recorder preflight:',e)}
+}
+// When switching lenses, retain the warmed mic so the next short clip starts quickly.
+function stopTracks(){
+ invalidatePrepared();stopPreviewPump();if(stream){for(const t of stream.getTracks())t.stop()}stream=null;
+ live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';
+}
+function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}wantCamera=false;clearTimeout(resumeTimer);stopTracks();stopMicrophone();setButtons();if(show)status('カメラを停止したよ。');}
 function qualityConstraints(){const high=$('quality').value==='high';const isVideo=shooting==='video',portrait=isVideo&&$('videoRes').value==='portrait';return {width:{ideal:isVideo?(portrait?1080:1920):high?4032:1920},height:{ideal:isVideo?(portrait?1920:1080):high?3024:1440},frameRate:{ideal:isVideo?30:30,max:30}}}
 function requestedCamera(){const v=cameraSelect.value;return v.startsWith('device:')?{deviceId:{exact:v.slice(7)}}:{facingMode:{ideal:v==='front'?'user':'environment'}};}
 async function listDevices(){
@@ -326,12 +379,16 @@ async function startCamera(){
   if(settings.deviceId&&cameraSelect.value.startsWith('device:')===false){ /* 選択は「標準」のまま */ }
   $('resolution').textContent=`${live.videoWidth}×${live.videoHeight} (${mp(live.videoWidth,live.videoHeight)}MP)`;
   selectedZoom=1;zoomMethod='なし';updateZoomButtons();
-  diagnostics=`Silent Camera v7\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
+  diagnostics=`Silent Camera v7.1\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
   $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／Canvasプレビュー`;
   $('copy').disabled=false;
   status(isNoodle()?'撮影準備中。0.5×の超広角を選択するよ。':'起動できたよ！ カメラ候補の一覧とズームボタンを確認してね。');
- }catch(e){stopTracks();wantCamera=false;status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
- finally{startBusy=false;setButtons(); if(stream&&isNoodle()&&!recording) scheduleNoodleLens();}
+ }catch(e){stopTracks();stopMicrophone();wantCamera=false;status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
+ finally{
+  startBusy=false;setButtons();
+  if(stream&&isNoodle()&&!recording)scheduleNoodleLens();
+  else if(stream&&shooting==='video'&&!recording)warmMicrophone();
+ }
 }
 function updateZoomButtons(){for(const b of document.querySelectorAll('[data-zoom]'))b.classList.toggle('selected',Number(b.dataset.zoom)===selectedZoom);setButtons()}
 async function changeZoom(z){
@@ -376,15 +433,18 @@ async function ensureNoodleLens(){
    $('noodleLens').textContent='0.5× · 背面超広角';
    $('zoomNote').textContent='超広角レンズで録画準備OK。左下の赤いボタンをタップ。';
    updateZoomButtons();status('麺撮影の準備OK！ 左下の赤いボタンで録画できるよ。');
+   warmMicrophone();
   }else if(canZoom(.5)){
    if(selectedZoom!==.5)await changeZoom(.5);
    $('noodleLens').textContent='0.5× · カメラAPI';
    $('zoomNote').textContent='0.5×に設定したよ。左下の赤いボタンをタップ。';
    status('麺撮影の準備OK！ 0.5×で録画できるよ。');
+   warmMicrophone();
   }else{
    $('noodleLens').textContent='超広角を選べません';
    $('zoomNote').textContent='Safariのカメラ設定から超広角が選べるか確認してね。';
    status('0.5×を自動設定できなかったよ。設定からカメラ候補を確認してね。');
+   warmMicrophone();
   }
  }catch(e){$('noodleLens').textContent='0.5×設定を確認してね';status('超広角への切り替えに失敗。設定からレンズを選んでね。');}
  finally{noodleLensBusy=false;}
@@ -483,20 +543,35 @@ async function startRecording(){
  const sourceW=live.videoWidth,sourceH=live.videoHeight;
  recordingMethod=$('recordMethod').value;
  let recordingStream=null;
+ recordingStarting=true;recordRequestAt=performance.now();setButtons();
  try{
   if(recordingMethod==='canvas')recordingStream=createCanvasCapture();
   else{recordingStream=new MediaStream(stream.getVideoTracks());lastCanvasDims='使用せず';drawnFrames=0}
   if(audioWanted){
-   try{
-    micStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});
+   if(!micReady()){
+    status('マイクを準備中… 初回だけ少し待つ場合があるよ。');
+    await warmMicrophone();
+   }
+   if(micReady()){
     micStream.getAudioTracks().forEach(t=>recordingStream.addTrack(t));audioStatus='マイクON';
-   }catch(e){audioStatus='マイク利用不可';status('マイクが使えないので、音声なしで録画するよ。')}
+   }else{
+    // Do not silently discard eating sounds: ask the user to retry if access failed.
+    throw new Error('マイクを使えないよ。Safariのマイク許可を確認するか、設定からマイクOFFにしてね。');
+   }
   }
   const trackSettings=recordingStream.getVideoTracks()[0]?.getSettings?.()||{};
   const captureDims=`${trackSettings.width||'?'}×${trackSettings.height||'?'}`;
-  let options={videoBitsPerSecond:12000000};if(mime)options.mimeType=mime;
-  try{recorder=new MediaRecorder(recordingStream,options)}
-  catch{recorder=new MediaRecorder(recordingStream)}
+  const key=`${stream.getVideoTracks()[0]?.id||''}|${audioWanted?'mic':'silent'}`;
+  if(recordingMethod==='direct'&&preparedRecorder&&preparedKey===key){
+   recorder=preparedRecorder;invalidatePrepared();
+  }else recorder=makeRecorder(recordingStream);
+  // Capture button->start timing to distinguish microphone latency from encoder latency.
+  recorderStartMs=0;
+  recorder.onstart=()=>{
+   recorderStartMs=performance.now();
+   const elapsed=Math.round(recorderStartMs-recordRequestAt);
+   diagnostics+=`\n開始遅延（ボタン→MediaRecorder start）：${elapsed}ms`;
+  };
   videoChunks=[];
   recorder.ondataavailable=e=>{if(e.data?.size)videoChunks.push(e.data)};
   recorder.onerror=e=>{status('動画の録画中にエラーが発生したよ。');console.warn(e)};
@@ -514,19 +589,17 @@ async function startRecording(){
     diagnostics+=`\n録画方式：${methodForFile}\n入力映像：${sourceW}×${sourceH}\n録画用トラック：${captureDims}\nCanvas：${canvasDimsForFile}\n描画回数：${frames}\nファイル：${ext.toUpperCase()} ${(file.size/1048576).toFixed(2)}MB／${audioStatus}`;
     status('録画が終了したよ。保存動画の実解像度が出たら「結果をコピー」してね。');
    }else status('録画データが空だったよ。「従来方式」を試してね。');
-   if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
-   recorder=null;setButtons();
+   recorder=null;setButtons();prepareRecorder();
   };
-  recorder.start();recording=true;recStart=Date.now();$('recTag').classList.add('on');
+  recorder.start();startCommandMs=Math.round(performance.now()-recordRequestAt);recording=true;recordingStarting=false;recStart=Date.now();$('recTag').classList.add('on');
   $('recordTime').textContent='00:00';
   timer=setInterval(()=>{const t=Math.floor((Date.now()-recStart)/1000);$('recordTime').textContent=`${String(Math.floor(t/60)).padStart(2,'0')}:${String(t%60).padStart(2,'0')}`},250);
-  diagnostics+=`\n録画テスト開始：${recordingMethod==='canvas'?'Canvas 1080p':'直接'}／入力${sourceW}×${sourceH}／トラック${captureDims}`;
+  diagnostics+=`\n録画テスト開始：${recordingMethod==='canvas'?'Canvas 1080p':'直接'}／入力${sourceW}×${sourceH}／トラック${captureDims}\nボタン→start()呼び出し：${startCommandMs}ms`;
   status(`${methodForFile}の録画中（${audioStatus}）。赤いボタンで停止してね。`);
  }catch(e){
   stopCanvasCapture();
-  if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
-  recorder=null;status(`録画開始失敗：${e.message}。新方式の場合は従来方式を試してね。`)
- }finally{setButtons()}
+  recorder=null;status(`録画開始失敗：${e.message}。設定を確認してね。`)
+ }finally{recordingStarting=false;setButtons()}
 }
 function stopRecording(){if(!recorder||!recording)return;recording=false;clearInterval(timer);timer=null;try{recorder.stop();status('動画を保存用に処理しているよ…')}catch(e){status(`録画停止エラー：${e.message}`)}setButtons()}
 async function switchMode(next){if(recording)return;shooting=next;$('photoMode').classList.toggle('active',shooting==='photo');$('videoMode').classList.toggle('active',shooting==='video');$('formatSetting').hidden=shooting!=='photo';$('videoResSetting').hidden=shooting!=='video';$('recordMethodSetting').hidden=shooting!=='video';$('audioSetting').hidden=shooting!=='video';view.classList.toggle('video-view',shooting==='video');
@@ -552,6 +625,7 @@ async function resumePreview(){
    try{if(live.paused||live.readyState<2)await live.play()}catch{await startCamera()}
    refreshPreviewSize();
    if(stream)startPreviewPump();
+   if(stream&&shooting==='video'&&!micReady())warmMicrophone();
   }
  }finally{resumePending=false}
 }
@@ -563,7 +637,7 @@ function scheduleResume(){
 }
 live.addEventListener('loadedmetadata',refreshPreviewSize);
 live.addEventListener('resize',refreshPreviewSize);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleResume()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){if(!recording)stopMicrophone()}else scheduleResume()});
 window.addEventListener('pageshow',scheduleResume);
 window.addEventListener('focus',scheduleResume);
 window.addEventListener('orientationchange',()=>requestAnimationFrame(refreshPreviewSize));
@@ -578,7 +652,8 @@ $('videoMode').addEventListener('click',()=>switchMode('video'));
 cameraSelect.addEventListener('change',async()=>{setLensButtons();if(stream)await startCamera();else status('カメラを選んだよ。起動して試してね。')});
 $('quality').addEventListener('change',async()=>{if(stream)await startCamera()});
 $('videoRes').addEventListener('change',async()=>{if(stream)await startCamera()});
-$('recordMethod').addEventListener('change',()=>{status($('recordMethod').value==='canvas'?'Canvas録画（比較用）を使うよ。':'カメラから直接録画するよ。')});
+$('recordMethod').addEventListener('change',()=>{prepareRecorder();status($('recordMethod').value==='canvas'?'Canvas録画（比較用）を使うよ。':'カメラから直接録画するよ。')});
+$('audio').addEventListener('change',()=>{if($('audio').checked)warmMicrophone();else stopMicrophone();prepareRecorder()});
 $('refresh').addEventListener('click',async()=>{let n=await listDevices();status(`${n}個のカメラ候補が見つかったよ。超広角・望遠が一覧に出るか確認してね。`)});
 $('grid').addEventListener('click',()=>{let on=view.classList.toggle('grid-on');$('grid').textContent=`グリッド：${on?'ON':'OFF'}`});
 $('fit').addEventListener('click',()=>{let full=!view.classList.toggle('show-entire');$('fit').textContent=full?'表示：画面いっぱい':'表示：全体';status(full?'画面を埋めるため端が少し切れる場合があるよ。':'全体表示では黒い余白が残る場合があるよ。');});
@@ -599,7 +674,7 @@ $('resultShare').addEventListener('click',shareFile);
 $('resultClose').addEventListener('click',closeResultSheet);
 $('resultAgain').addEventListener('click',closeResultSheet);
 shareBtn.addEventListener('click',shareFile);downloadBtn.addEventListener('click',downloadFile);$('copy').addEventListener('click',copyInfo);
-window.addEventListener('pagehide',()=>{if(recording)stopRecording();if(stream)stopTracks();stopCanvasCapture();if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}});
+window.addEventListener('pagehide',()=>{if(recording)stopRecording();if(stream)stopTracks();stopCanvasCapture();stopMicrophone();});
 // Default to the noodle capture preset, without overriding later manual normal-mode changes.
 $('videoRes').value='standard';$('recordMethod').value='direct';$('audio').checked=true;
 $('formatSetting').hidden=true;$('videoResSetting').hidden=false;$('recordMethodSetting').hidden=false;$('audioSetting').hidden=false;
