@@ -1,224 +1,225 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0c111b">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="無音カメラ">
-  <meta name="description" content="写真を送信しない、iPhone向け無音カメラ試作版">
-  <title>無音カメラ v2</title>
-  <style>
-    :root { color-scheme:dark; --bg:#0c111b; --panel:#1b2536; --white:#f5f7fd; --sub:#b6c5d8; --accent:#c2e8ff; }
-    * {box-sizing:border-box}
-    html,body {margin:0; min-height:100%; background:var(--bg); color:var(--white); font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif}
-    .app {max-width:680px; margin:0 auto; min-height:100svh; display:flex; flex-direction:column; padding:calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 22px); gap:12px}
-    header,.toolbar,.controls,.settings {display:flex; align-items:center; justify-content:space-between; gap:10px}
-    h1 {font-size:20px; margin:0; font-weight:750}
-    .tag {font-size:11px; background:#16362d; color:#bdf2d6; border:1px solid #376652; border-radius:100px; padding:6px 9px; white-space:nowrap}
-    .camera {position:relative; width:100%; background:#070b11; border-radius:16px; border:1px solid #2b3850; overflow:hidden; aspect-ratio:3/4; max-height:64svh; display:flex; align-items:center; justify-content:center}
-    video {display:none; width:100%; height:100%; object-fit:contain}
-    .camera.running video {display:block}
-    .placeholder {position:absolute; text-align:center; line-height:1.8; color:var(--sub); font-size:14px; padding:18px}
-    .camera.running .placeholder {display:none}
-    .res {position:absolute; left:10px; top:10px; background:#000b; border-radius:8px; font-size:12px; padding:7px 9px; font-variant-numeric:tabular-nums; display:none}
-    .camera.running .res {display:block}
-    .gridlines {position:absolute; inset:0; display:none; pointer-events:none; background-image:linear-gradient(to right,transparent 33.1%,#ffffff80 33.25%,#ffffff80 33.45%,transparent 33.6%,transparent 66.4%,#ffffff80 66.55%,#ffffff80 66.75%,transparent 66.9%),linear-gradient(to bottom,transparent 33.1%,#ffffff80 33.25%,#ffffff80 33.45%,transparent 33.6%,transparent 66.4%,#ffffff80 66.55%,#ffffff80 66.75%,transparent 66.9%)}
-    .camera.grid-on.running .gridlines {display:block}
-    button,select {border:0; border-radius:11px; background:var(--panel); color:var(--white); padding:11px 13px; min-height:42px; font-size:14px; font-weight:650; cursor:pointer}
-    button:disabled,select:disabled {opacity:.4}
-    .primary {background:var(--accent); color:#0e2234}
-    .shutter {height:76px; width:76px; flex-shrink:0; border:5px solid var(--white); background:#eef7ff; box-shadow:inset 0 0 0 5px #223247; border-radius:50%; padding:0}
-    .shutter:active {transform:scale(.96)}
-    .controls {justify-content:center; gap:20px}
-    .controls button:not(.shutter) {flex:1; max-width:170px}
-    .toolbar button {flex:1}
-    .settings {align-items:center; background:#141e2c; padding:9px 12px; border-radius:12px; flex-wrap:wrap}
-    .settings label {font-size:13px; color:var(--sub); font-weight:600}
-    .settings select {flex:1; min-width:190px}
-    .status {font-size:13px; line-height:1.5; color:var(--sub); min-height:20px; text-align:center}
-    .diagnostics {border:1px solid #2a3a50; border-radius:12px; background:#131e2d; padding:12px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:space-between}
-    .diagnostics div {min-width:0; flex:1}
-    .diagnostics strong {font-size:13px}
-    .diagnostics small {display:block; margin-top:5px; color:var(--sub); font-size:12px; line-height:1.5; overflow-wrap:anywhere}
-    .diagnostics button {font-size:12px; padding:8px 10px; min-height:36px}
-    .preview {display:none; gap:12px; align-items:center; padding:12px; border-radius:13px; background:#162235; border:1px solid #314158}
-    .preview.visible {display:flex}
-    .preview img {width:92px; height:104px; flex-shrink:0; border-radius:9px; object-fit:contain; background:#05080d}
-    .preview-info {display:flex; flex-direction:column; gap:7px; min-width:0}
-    .preview-info strong {font-size:15px}
-    .preview-info small {color:var(--sub); font-size:12px; line-height:1.5}
-    .preview-actions {display:flex; flex-wrap:wrap; gap:8px}
-    .preview-actions button {min-height:37px; padding:9px 11px; font-size:12px}
-    .hint {font-size:12px; line-height:1.65; color:var(--sub); padding:11px 12px; background:#131d2b; border:1px solid #27374c; border-radius:12px}
-    .hint strong {color:#f0f5fc}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b101a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Silent Camera">
+<title>Silent Camera v3</title>
+<style>
+:root{color-scheme:dark;--bg:#0b101a;--panel:#192536;--fg:#f5f7fa;--muted:#b9c7d6;--accent:#b5e7ff;--line:#2e3b51}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
+button,select,input{font:inherit}button,select{min-height:42px;border:1px solid var(--line);background:var(--panel);color:var(--fg);border-radius:12px;padding:10px 12px;font-size:14px}button{cursor:pointer;font-weight:650}button:disabled,select:disabled{opacity:.42;cursor:default}
+.app{max-width:650px;min-height:100svh;margin:auto;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 22px);display:flex;flex-direction:column;gap:10px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1{font-size:19px;margin:0}.tag{font-size:11px;border:1px solid #346f58;border-radius:30px;background:#153a2c;color:#bef0d5;padding:6px 8px;white-space:nowrap}
+.modebar{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#111b2a;border-radius:14px;padding:5px}.modebar button{border:0;background:transparent}.modebar .active{background:#344863;color:white}
+.view{position:relative;overflow:hidden;border-radius:17px;background:#02060b;border:1px solid var(--line);width:100%;aspect-ratio:3/4;max-height:58svh;display:flex;justify-content:center;align-items:center}
+#live{display:none;width:100%;height:100%;object-fit:contain;transform-origin:center center}.view.running #live{display:block}.placeholder{position:absolute;text-align:center;color:var(--muted);line-height:1.8;padding:20px}.view.running .placeholder{display:none}
+.overlay{position:absolute;left:10px;top:10px;background:#000a;padding:5px 8px;border-radius:8px;font-size:12px;font-variant-numeric:tabular-nums;display:none}.view.running .overlay{display:block}
+.rec-tag{position:absolute;right:10px;top:10px;display:none;align-items:center;gap:6px;background:#230607dd;color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-variant-numeric:tabular-nums}.rec-tag.on{display:flex}.red-dot{width:9px;height:9px;background:#ff4b55;border-radius:50%}
+.gridlines{position:absolute;inset:0;display:none;pointer-events:none;background-image:linear-gradient(to right,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%),linear-gradient(to bottom,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%)}.view.grid-on.running .gridlines{display:block}
+.row{display:flex;align-items:center;gap:8px}.row>*{flex:1;min-width:0}.selectrow{display:flex;align-items:center;gap:9px;background:#131d2a;border-radius:12px;padding:8px 10px}.selectrow label{font-size:13px;color:var(--muted);white-space:nowrap}.selectrow select{flex:1;min-width:0}
+.zoomrow{display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap}.zoomrow button{min-width:49px;border-radius:24px;padding:7px 10px;min-height:38px}.zoomrow button.selected{background:#c5eaff;color:#082337;border-color:#c5eaff}.zoom-note{font-size:11px;color:var(--muted);text-align:center;min-height:17px}
+.controls{display:flex;align-items:center;justify-content:center;gap:15px}.controls button:not(.shutter){width:100px;max-width:26vw}.primary{background:var(--accent);color:#062137;border-color:var(--accent)}.shutter{width:74px;height:74px;flex:none;border:5px solid white;border-radius:50%;background:#f8fbff;box-shadow:inset 0 0 0 5px #142538;padding:0}.shutter.video-button{background:#f74a50;box-shadow:inset 0 0 0 9px #182333;border-color:#fff}.shutter.recording{background:#ff4d52;box-shadow:inset 0 0 0 19px #182333;border-radius:50%}.shutter.recording::after{content:"";display:block;background:white;border-radius:3px;height:24px;width:24px;margin:auto}
+.status{font-size:13px;color:var(--muted);text-align:center;line-height:1.55;min-height:22px}.checkline{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;gap:10px;align-items:center;background:#142033;border-radius:12px;padding:8px 12px}.checkline input{width:20px;height:20px;accent-color:#b5e7ff}
+.diagnostics{border:1px solid var(--line);border-radius:12px;padding:11px;display:flex;justify-content:space-between;align-items:center;gap:8px;background:#111c2b}.diagnostics div{flex:1;min-width:0}.diagnostics strong{font-size:13px}.diagnostics small{display:block;font-size:12px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere;margin-top:5px}.diagnostics button{font-size:12px;min-height:36px;padding:7px 10px}
+.preview{display:none;background:#152235;border:1px solid var(--line);border-radius:13px;padding:10px;gap:12px;align-items:center}.preview.show{display:flex}.preview img,.preview video{width:90px;height:110px;object-fit:contain;border-radius:8px;background:black;flex:none}.preview video{display:none}.preview-info{min-width:0;flex:1}.preview-info strong{font-size:14px}.preview-info small{display:block;color:var(--muted);font-size:12px;line-height:1.5;margin:7px 0}.preview-actions{display:flex;gap:7px;flex-wrap:wrap}.preview-actions button{min-height:36px;padding:7px 10px;font-size:12px}
+.hint{border:1px solid var(--line);background:#101a28;border-radius:12px;padding:10px 11px;color:var(--muted);font-size:12px;line-height:1.65}.hint b{color:white}
+[hidden]{display:none!important}
+</style>
 </head>
 <body>
- <main class="app">
-  <header><h1>📷 無音カメラ</h1><span class="tag">v2 ・外部送信なし</span></header>
-  <section class="camera" id="camera" aria-label="カメラのプレビュー">
-   <video id="video" autoplay playsinline muted></video>
-   <div class="placeholder">📸<br>「カメラを起動」を押してね</div>
-   <div class="res" id="resolution" aria-live="polite"></div>
-   <div class="gridlines" aria-hidden="true"></div>
-  </section>
-  <div class="settings">
-   <label for="mode">撮影モード</label>
-   <select id="mode" aria-label="撮影モード">
-    <option value="quality" selected>高画質優先（4:3を要求）</option>
-    <option value="normal">標準（4:3を要求）</option>
-   </select>
-  </div>
-  <div class="toolbar">
-   <button type="button" id="switchCamera">前面 / 背面</button>
-   <button type="button" id="grid">グリッド：OFF</button>
-  </div>
-  <div class="controls">
-   <button type="button" id="start" class="primary">カメラを起動</button>
-   <button type="button" id="shutter" class="shutter" aria-label="音を出さずに撮影" disabled></button>
-   <button type="button" id="stop" disabled>停止</button>
-  </div>
-  <div id="status" class="status" role="status">最初はSafariでカメラへのアクセスを許可してね。</div>
-  <section class="diagnostics" aria-label="撮影解像度の診断">
-   <div><strong>画質の確認</strong><small id="diagnosticText">カメラ起動後、実際の映像解像度と画素数を表示するよ。</small></div>
-   <button type="button" id="copy" disabled>結果をコピー</button>
-  </section>
-  <section class="preview" id="preview">
-   <img id="photo" alt="撮影した写真のプレビュー">
-   <div class="preview-info">
-    <strong>撮影できたよ！</strong>
-    <small id="photoResolution"></small>
-    <div class="preview-actions">
-     <button type="button" id="share" class="primary">写真に保存・共有</button>
-     <button type="button" id="download">ファイル保存</button>
-    </div>
-   </div>
-  </section>
-  <aside class="hint">
-   <strong>使い方：</strong>撮影モードを選択 → 起動 → 無音シャッター → 「写真に保存・共有」から「画像を保存」。モード変更はカメラ停止後に行ってね。<br>
-   <strong>高画質優先は保証ではないよ：</strong>Safariに希望解像度を伝える方式なので、実際の写真の画素数は「画質の確認」を見てね。撮影はこれまでと同じ映像フレーム方式で、48MPや純正HDRは保証されないよ。<br>
-   <strong>プライバシー：</strong>撮影画像をサーバーへアップロードせず、iPhoneのブラウザ上で処理するよ。
-  </aside>
- </main>
- <script>
- 'use strict';
- const $ = id => document.getElementById(id);
- const video = $('video'), camera = $('camera'), mode = $('mode');
- const startBtn = $('start'), stopBtn = $('stop'), shutterBtn = $('shutter');
- const shareBtn = $('share'), downloadBtn = $('download');
- const switchBtn = $('switchCamera'), gridBtn = $('grid'), copyBtn = $('copy');
- let stream = null, facing = 'environment', photoFile = null, photoURL = null, diagnostics = '';
- const message = value => { $('status').textContent = value; };
- const megapixels = (w,h) => ((w*h)/1e6).toFixed(2);
- const dimensions = (w,h) => `${w} × ${h}（${megapixels(w,h)}MP）`;
- function constraintsForMode() {
-   const high = mode.value === 'quality';
-   // ideal は「希望」。端末/ブラウザが応じるとは限らない。
-   return {audio:false,video:{facingMode:{ideal:facing},width:{ideal:high?4032:1920},height:{ideal:high?3024:1440},aspectRatio:{ideal:4/3}}};
+<main class="app">
+<header><h1>📷 Silent Camera</h1><span class="tag">v3 · 外部送信なし</span></header>
+<div class="modebar" role="group" aria-label="撮影タイプ"><button id="photoMode" class="active" type="button">📷 写真</button><button id="videoMode" type="button">🎥 動画</button></div>
+<section id="view" class="view" aria-label="カメラ映像">
+<video id="live" autoplay playsinline muted></video>
+<div class="placeholder">📸<br>「カメラを起動」を押してね</div>
+<div class="overlay" id="resolution"></div>
+<div class="rec-tag" id="recTag"><span class="red-dot"></span><span id="recordTime">00:00</span></div>
+<div class="gridlines" aria-hidden="true"></div>
+</section>
+<div class="selectrow"><label for="cameraSelect">使用カメラ</label><select id="cameraSelect"><option value="rear">背面（標準）</option><option value="front">前面（自撮り）</option></select></div>
+<div class="zoomrow" id="zoomRow" aria-label="ズーム">
+<button type="button" data-zoom="0.5" disabled>0.5×</button><button type="button" data-zoom="1" class="selected">1×</button><button type="button" data-zoom="2">2×</button><button type="button" data-zoom="3">3×</button><button type="button" data-zoom="5">5×</button>
+</div>
+<div class="zoom-note" id="zoomNote">0.5×はSafariが超広角を公開している場合のみ使えるよ。</div>
+<div class="selectrow" id="qualitySetting"><label for="quality">画質</label><select id="quality"><option value="high">高画質優先</option><option value="standard">標準</option></select></div>
+<div class="selectrow" id="formatSetting"><label for="format">写真保存</label><select id="format"><option value="jpeg">JPEG（品質98%）</option><option value="png">PNG（無劣化）</option></select></div>
+<label class="checkline" id="audioSetting" hidden><span>動画にマイク音声を入れる（シャッター音とは別）</span><input type="checkbox" id="audio" checked></label>
+<div class="row"><button type="button" id="grid">グリッド：OFF</button><button type="button" id="refresh">カメラ候補を再取得</button></div>
+<div class="controls"><button type="button" id="start" class="primary">起動</button><button type="button" class="shutter" id="shutter" aria-label="写真を撮影" disabled></button><button type="button" id="stop" disabled>停止</button></div>
+<div id="status" class="status" role="status">Safariでカメラへのアクセスを許可してね。</div>
+<section class="diagnostics"><div><strong>撮影情報</strong><small id="diagnosticText">起動後にカメラ名・映像解像度・ズーム方式などを確認できるよ。</small></div><button type="button" id="copy" disabled>結果をコピー</button></section>
+<section class="preview" id="preview"><img id="photo" alt="撮影した写真のプレビュー"><video id="clip" controls playsinline preload="metadata"></video><div class="preview-info"><strong id="previewTitle">撮影できたよ！</strong><small id="fileInfo"></small><div class="preview-actions"><button type="button" id="share" class="primary">保存・共有</button><button type="button" id="download">ファイル保存</button></div></div></section>
+<aside class="hint"><b>カメラの切り替え：</b>「使用カメラ」にSafariが認識した候補を表示するよ。超広角・望遠が個別に出ていれば選べるけど、iPhoneのSafariではレンズを個別に公開しない場合があるの。2×以上は光学ズームと限らず、非対応時は写真のみデジタル拡大になるよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const live = $('live'), view=$('view'), cameraSelect=$('cameraSelect');
+const startBtn=$('start'),stopBtn=$('stop'),shutter=$('shutter');
+const shareBtn=$('share'),downloadBtn=$('download');
+let stream=null, micStream=null, recorder=null, videoChunks=[], recStart=0, timer=null;
+let shooting='photo', selectedZoom=1, zoomMethod='なし', recording=false;
+let currentFile=null, currentURL=null, diagnostics='', knownDevices=[], startBusy=false;
+const status = s => $('status').textContent=s;
+const mp=(w,h)=>((w*h)/1e6).toFixed(2);
+const stamp=()=>{let d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,'0')).join('')}`};
+const isRear = () => cameraSelect.value !== 'front' && !(cameraSelect.value.startsWith('device:') && /front|user|前面/i.test((knownDevices.find(d=>'device:'+d.deviceId===cameraSelect.value)||{}).label||''));
+function track(){return stream&&stream.getVideoTracks()[0]}
+function caps(){try{return track()?.getCapabilities?.()||{}}catch{return {}}}
+function cameraName(){return cameraSelect.selectedOptions[0]?.textContent||'不明'}
+function setButtons(){
+ const active=!!stream, busy=recording||startBusy;
+ startBtn.disabled=active||busy;stopBtn.disabled=!active||busy;shutter.disabled=!active||startBusy;
+ cameraSelect.disabled=busy; $('quality').disabled=busy; $('refresh').disabled=busy;
+ $('photoMode').disabled=busy;$('videoMode').disabled=busy;
+ $('format').disabled=recording; $('audio').disabled=recording;
+ for(const b of document.querySelectorAll('[data-zoom]')) b.disabled=busy||!active||((Number(b.dataset.zoom)<1)&&!canZoom(0.5));
+ shutter.classList.toggle('video-button',shooting==='video');shutter.classList.toggle('recording',recording);
+ shutter.setAttribute('aria-label',recording?'動画録画を停止':shooting==='video'?'動画録画を開始':'写真を撮影');
+}
+function canZoom(value){const z=caps().zoom;return z&&Number.isFinite(z.min)&&Number.isFinite(z.max)&&value>=z.min&&value<=z.max;}
+function stopTracks(){ if(stream){for(const t of stream.getTracks())t.stop()}stream=null; if(micStream){for(const t of micStream.getTracks())t.stop()}micStream=null;live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';}
+function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}stopTracks();setButtons();if(show)status('カメラを停止したよ。');}
+function qualityConstraints(){const high=$('quality').value==='high';const isVideo=shooting==='video';return {width:{ideal:isVideo?1920:high?4032:1920},height:{ideal:isVideo?1080:high?3024:1440},frameRate:{ideal:isVideo?30:30,max:30}}}
+function requestedCamera(){const v=cameraSelect.value;return v.startsWith('device:')?{deviceId:{exact:v.slice(7)}}:{facingMode:{ideal:v==='front'?'user':'environment'}};}
+async function listDevices(){
+ try{
+  const selected=cameraSelect.value;
+  knownDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&d.deviceId);
+  cameraSelect.innerHTML='<option value="rear">背面（標準）</option><option value="front">前面（自撮り）</option>';
+  knownDevices.forEach((d,i)=>{const opt=document.createElement('option');opt.value='device:'+d.deviceId;opt.textContent=d.label?`📷 ${d.label}`:`カメラ候補 ${i+1}`;cameraSelect.appendChild(opt)});
+  if([...cameraSelect.options].some(o=>o.value===selected))cameraSelect.value=selected;
+  else cameraSelect.value='rear';
+  return knownDevices.length;
+ }catch{return 0}
+}
+async function startCamera(){
+ if(startBusy||recording)return;
+ if(!navigator.mediaDevices?.getUserMedia){status('HTTPSのSafariで開いてね。この環境ではカメラを使えないよ。');return;}
+ startBusy=true;setButtons();status('カメラを起動中…');
+ stopTracks();
+ try{
+  let requested={...qualityConstraints(),...requestedCamera()};
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:false,video:requested})}
+  catch(e){if(e.name==='NotAllowedError'||e.name==='SecurityError')throw e;
+    const selector=requestedCamera();
+    stream=await navigator.mediaDevices.getUserMedia({audio:false,video:selector});
+  }
+  live.srcObject=stream;await live.play();view.classList.add('running');
+  // 標準カメラ初回許可後に初めて全カメラの表示名が得られる場合がある。
+  const n=await listDevices();
+  // 実際に取得したトラックとUI選択が一致している場合はそのまま維持。
+  const settings=track()?.getSettings?.()||{};
+  if(settings.deviceId&&cameraSelect.value.startsWith('device:')===false){ /* 選択は「標準」のまま */ }
+  $('resolution').textContent=`${live.videoWidth}×${live.videoHeight} (${mp(live.videoWidth,live.videoHeight)}MP)`;
+  selectedZoom=1;zoomMethod='なし';updateZoomButtons();
+  diagnostics=`Silent Camera v3\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
+  $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／${caps().zoom?'ズームAPI対応':'ズームAPI非公開'}`;
+  $('copy').disabled=false;
+  status('起動できたよ！ カメラ候補の一覧とズームボタンを確認してね。');
+ }catch(e){stopTracks();status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
+ finally{startBusy=false;setButtons()}
+}
+function updateZoomButtons(){for(const b of document.querySelectorAll('[data-zoom]'))b.classList.toggle('selected',Number(b.dataset.zoom)===selectedZoom);setButtons()}
+async function changeZoom(z){
+ if(!stream||recording)return;
+ if(z<1&&!canZoom(z)){status('このブラウザでは0.5×に切り替えられないよ。「使用カメラ」に超広角の候補があるか確認してね。');return;}
+ try{
+  if(canZoom(z)){
+   await track().applyConstraints({advanced:[{zoom:z}]});
+   live.style.transform='none';zoomMethod='カメラAPI';
+  }else if(z>1){
+   // WebKit がズームAPIを公開しない場合は、写真のみプレビューと撮影領域をトリミング。
+   if(shooting==='video'){status('SafariがズームAPIを公開していないため、動画の拡大録画は今回の版では非対応だよ。1×で録画してね。');return;}
+   live.style.transform=`scale(${z})`;zoomMethod='写真用デジタル拡大';
+  }else{
+   if(canZoom(1))await track().applyConstraints({advanced:[{zoom:1}]});
+   live.style.transform='none';zoomMethod='なし';
+  }
+  selectedZoom=z;updateZoomButtons();
+  $('zoomNote').textContent=z===1?'1× 標準撮影':`${z}× ／ ${zoomMethod}（光学レンズかどうかは保証されないよ）`;
+  status(`${z}× に切り替えたよ。${zoomMethod==='写真用デジタル拡大'?'画質は拡大分だけ落ちる場合があるよ。':''}`);
+ }catch(e){status(`ズーム切替に失敗：${e.message}`)}
+}
+function clearPreview(){if(currentURL)URL.revokeObjectURL(currentURL);currentURL=null;currentFile=null;$('clip').pause();$('clip').removeAttribute('src');$('clip').load();$('preview').classList.remove('show')}
+function showFile(file,kind,info){clearPreview();currentFile=file;currentURL=URL.createObjectURL(file);$('previewTitle').textContent=kind==='photo'?'写真を撮影したよ！':'動画を録画したよ！';$('fileInfo').textContent=info;$('photo').style.display=kind==='photo'?'block':'none';$('clip').style.display=kind==='video'?'block':'none';if(kind==='photo')$('photo').src=currentURL;else $('clip').src=currentURL;$('preview').classList.add('show')}
+async function takePhoto(){
+ if(!stream||!live.videoWidth)return;shutter.disabled=true;
+ try{
+  const canvas=document.createElement('canvas');canvas.width=live.videoWidth;canvas.height=live.videoHeight;
+  const ctx=canvas.getContext('2d',{alpha:false});if(!ctx)throw Error('canvasを使えません');
+  const z=zoomMethod==='写真用デジタル拡大'?selectedZoom:1;
+  if(z>1){const sw=live.videoWidth/z,sh=live.videoHeight/z;ctx.drawImage(live,(live.videoWidth-sw)/2,(live.videoHeight-sh)/2,sw,sh,0,0,canvas.width,canvas.height)}
+  else ctx.drawImage(live,0,0,canvas.width,canvas.height);
+  const png=$('format').value==='png';const mime=png?'image/png':'image/jpeg';
+  const blob=await new Promise(ok=>canvas.toBlob(ok,mime,png?undefined:.98));if(!blob)throw Error('画像を作成できません');
+  const file=new File([blob],`SilentCamera_${stamp()}.${png?'png':'jpg'}`,{type:mime});
+  showFile(file,'photo',`${canvas.width}×${canvas.height}／${(file.size/1048576).toFixed(2)}MB／${png?'PNG':'JPEG'}／${selectedZoom}×`);
+  diagnostics+=`\n写真：${canvas.width}×${canvas.height}／${(file.size/1048576).toFixed(2)}MB／${png?'PNG':'JPEG'}／${selectedZoom}×(${zoomMethod})`;
+  status('無音で撮影したよ。「保存・共有」から写真アプリに保存できるよ。');
+ }catch(e){status(`写真の撮影に失敗：${e.message}`)}finally{setButtons()}
+}
+function chooseMime(){if(typeof MediaRecorder==='undefined')return null;
+ for(const t of ['video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4;codecs=avc1.42E01E','video/mp4','video/webm;codecs=vp8,opus','video/webm']){try{if(MediaRecorder.isTypeSupported(t))return t}catch{}}
+ return '';
+}
+async function startRecording(){
+ if(!stream||recording)return;
+ if(typeof MediaRecorder==='undefined'){status('このSafariでは動画録画APIが使えないよ。');return;}
+ const mime=chooseMime();let audioStatus='マイクOFF';let recordingStream=new MediaStream(stream.getVideoTracks());
+ if($('audio').checked){
+  try{micStream=await navigator.mediaDevices.getUserMedia({audio:true,video:false});micStream.getAudioTracks().forEach(t=>recordingStream.addTrack(t));audioStatus='マイクON'}
+  catch(e){audioStatus='マイク利用不可';status('マイクが使えないので、無音声動画として録画するよ。')}
  }
- function stopCamera(showMessage=true) {
-   if (stream) stream.getTracks().forEach(track => track.stop());
-   stream = null;
-   video.pause(); video.srcObject = null;
-   camera.classList.remove('running');
-   startBtn.disabled = false; stopBtn.disabled = true; shutterBtn.disabled = true;
-   mode.disabled = false; switchBtn.disabled = false;
-   if (showMessage) message('カメラを停止したよ。');
- }
- async function startCamera() {
-   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-     message('このブラウザではカメラを利用できないよ。HTTPSのSafariで開いてね。'); return;
-   }
-   if (stream) stopCamera(false);
-   startBtn.disabled = true; switchBtn.disabled = true; mode.disabled = true;
-   message('カメラを起動中…');
-   try {
-     try {
-       stream = await navigator.mediaDevices.getUserMedia(constraintsForMode());
-     } catch (error) {
-       if (error.name === 'NotAllowedError' || error.name === 'SecurityError') throw error;
-       stream = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:facing}}});
-     }
-     video.srcObject = stream;
-     await video.play();
-     camera.classList.add('running');
-     stopBtn.disabled = false; shutterBtn.disabled = false; switchBtn.disabled = false;
-     const track = stream.getVideoTracks()[0];
-     const settings = track && track.getSettings ? track.getSettings() : {};
-     const w = video.videoWidth, h = video.videoHeight;
-     $('resolution').textContent = dimensions(w,h);
-     const modeName = mode.value === 'quality' ? '高画質優先' : '標準';
-     const facingName = facing === 'environment' ? '背面' : '前面';
-     diagnostics = `Silent Camera v2\nモード：${modeName}\nカメラ：${facingName}\n映像フレーム：${w}×${h}（${megapixels(w,h)}MP）\ntrack設定：${settings.width||'不明'}×${settings.height||'不明'}`;
-     $('diagnosticText').textContent = `取得した映像：${dimensions(w,h)} ／ ${modeName} ／ ${facingName}`;
-     copyBtn.disabled = false;
-     message('準備OK！ 静止画の画素数も撮影後に表示するよ。');
-   } catch (error) {
-     stopCamera(false);
-     if (error.name === 'NotAllowedError' || error.name === 'SecurityError') message('カメラの使用許可が必要だよ。Safariのサイト設定を確認してね。');
-     else message(`カメラ起動に失敗したよ（${error.name||'不明なエラー'}）。`);
-   }
- }
- async function switchCamera() {
-   facing = facing === 'environment' ? 'user' : 'environment';
-   switchBtn.textContent = facing === 'environment' ? '前面 / 背面' : '背面 / 前面';
-   if (stream) { stopCamera(false); await startCamera(); }
-   else message(facing === 'environment' ? '背面カメラを選択したよ。' : '前面カメラを選択したよ。');
- }
- async function capture() {
-   if (!stream || !video.videoWidth || !video.videoHeight) { message('先にカメラを起動してね。'); return; }
-   shutterBtn.disabled = true;
-   try {
-     const canvas = document.createElement('canvas');
-     canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-     const ctx = canvas.getContext('2d',{alpha:false});
-     if (!ctx) throw new Error('画像処理が利用できません');
-     ctx.drawImage(video,0,0,canvas.width,canvas.height);
-     // JPEG品質は高め。画素数を水増しする処理はしない。
-     const blob = await new Promise(resolve => canvas.toBlob(resolve,'image/jpeg',0.98));
-     if (!blob) throw new Error('画像の作成に失敗しました');
-     const now = new Date();
-     const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${[now.getHours(),now.getMinutes(),now.getSeconds()].map(x=>String(x).padStart(2,'0')).join('')}`;
-     photoFile = new File([blob],`SilentCamera_${stamp}.jpg`,{type:'image/jpeg'});
-     if (photoURL) URL.revokeObjectURL(photoURL);
-     photoURL = URL.createObjectURL(blob);
-     $('photo').src = photoURL;
-     const photoInfo = `${dimensions(canvas.width,canvas.height)} ／ ${(blob.size/1024/1024).toFixed(2)}MB`;
-     $('photoResolution').textContent = photoInfo;
-     $('preview').classList.add('visible');
-     diagnostics += `\n最新の写真：${canvas.width}×${canvas.height}（${megapixels(canvas.width,canvas.height)}MP）\nJPEGサイズ：${(blob.size/1024/1024).toFixed(2)}MB`;
-     message('無音方式で撮影できたよ。実際の画素数は下の「画質の確認」を見てね。');
-   } catch(error) { message(`撮影に失敗したよ：${error.message}`); }
-   finally { shutterBtn.disabled = !stream; }
- }
- async function share() {
-   if (!photoFile) return;
-   if (!navigator.share || (navigator.canShare && !navigator.canShare({files:[photoFile]}))) { message('共有機能を利用できないよ。「ファイル保存」を試してね。');return; }
-   try { await navigator.share({files:[photoFile]}); message('共有メニューを閉じたよ。写真アプリへの保存を確認してね。'); }
-   catch(error) { if(error.name !== 'AbortError') message('共有できなかったよ。「ファイル保存」を試してね。'); }
- }
- function download() {
-   if (!photoURL || !photoFile) return;
-   const link = document.createElement('a'); link.href=photoURL; link.download=photoFile.name;
-   document.body.appendChild(link);link.click();link.remove();
-   message('Safariのダウンロード先を確認してね。写真アプリへの直接保存ではないよ。');
- }
- async function copyDiagnostics() {
-   if (!diagnostics) return;
-   try { await navigator.clipboard.writeText(diagnostics); message('結果をコピーしたよ。このチャットに貼り付けてね。'); }
-   catch { message('コピーできなかったよ。画質の確認部分のスクショでも大丈夫。'); }
- }
- startBtn.addEventListener('click',startCamera);
- stopBtn.addEventListener('click',()=>stopCamera());
- shutterBtn.addEventListener('click',capture);
- switchBtn.addEventListener('click',switchCamera);
- gridBtn.addEventListener('click',()=>{const on = camera.classList.toggle('grid-on'); gridBtn.textContent = `グリッド：${on?'ON':'OFF'}`;});
- shareBtn.addEventListener('click',share);
- downloadBtn.addEventListener('click',download);
- copyBtn.addEventListener('click',copyDiagnostics);
- window.addEventListener('pagehide',()=>{if(stream)stopCamera(false);});
- </script>
+ try{
+  let options={videoBitsPerSecond:12000000};if(mime)options.mimeType=mime;
+  try{recorder=new MediaRecorder(recordingStream,options)}
+  catch{recorder=new MediaRecorder(recordingStream)}
+  videoChunks=[];
+  recorder.ondataavailable=e=>{if(e.data?.size)videoChunks.push(e.data)};
+  recorder.onerror=e=>{status('動画の録画中にエラーが発生したよ。');console.warn(e)};
+  recorder.onstop=()=>{
+   clearInterval(timer);timer=null;$('recTag').classList.remove('on');
+   const realMime=recorder.mimeType||mime||'video/mp4';const ext=realMime.includes('webm')?'webm':'mp4';
+   const blob=new Blob(videoChunks,{type:realMime});videoChunks=[];
+   if(blob.size){const file=new File([blob],`SilentCamera_${stamp()}.${ext}`,{type:realMime});
+    showFile(file,'video',`${(file.size/1048576).toFixed(2)}MB／${ext.toUpperCase()}／${audioStatus}`);
+    diagnostics+=`\n動画：${ext.toUpperCase()}／${(file.size/1048576).toFixed(2)}MB／${audioStatus}`;
+    status('録画できたよ！ 「保存・共有」からビデオ保存を試してね。');
+   }else{status('録画データが空だったよ。もう一度試してね。')}
+   if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}
+   recorder=null;
+  };
+  recorder.start();recording=true;recStart=Date.now();$('recTag').classList.add('on');
+  $('recordTime').textContent='00:00';timer=setInterval(()=>{const s=Math.floor((Date.now()-recStart)/1000);$('recordTime').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`},250);
+  status(`動画の録画中（${audioStatus}）。赤いボタンで停止してね。`);
+ }catch(e){if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}recorder=null;status(`録画を開始できなかったよ：${e.message}`)}
+ finally{setButtons()}
+}
+function stopRecording(){if(!recorder||!recording)return;recording=false;clearInterval(timer);timer=null;try{recorder.stop();status('動画を保存用に処理しているよ…')}catch(e){status(`録画停止エラー：${e.message}`)}setButtons()}
+async function switchMode(next){if(recording)return;shooting=next;$('photoMode').classList.toggle('active',shooting==='photo');$('videoMode').classList.toggle('active',shooting==='video');$('formatSetting').hidden=shooting!=='photo';$('audioSetting').hidden=shooting!=='video';
+ shutter.classList.toggle('video-button',shooting==='video');if(stream)await startCamera();else{setButtons();status(shooting==='video'?'動画モード。起動後、赤いボタンで録画できるよ。':'写真モード。起動後、白いボタンで無音撮影できるよ。')}}
+async function shareFile(){if(!currentFile)return;try{if(!navigator.share||navigator.canShare&&!navigator.canShare({files:[currentFile]}))throw Error('共有未対応');await navigator.share({files:[currentFile]});status('共有メニューを閉じたよ。写真・ビデオが保存されたか確認してね。')}catch(e){if(e.name!=='AbortError')status('共有できなかったよ。「ファイル保存」を試してね。')}}
+function downloadFile(){if(!currentURL||!currentFile)return;let a=document.createElement('a');a.href=currentURL;a.download=currentFile.name;document.body.appendChild(a);a.click();a.remove();status('Safariの「ダウンロード」フォルダを確認してね。')}
+async function copyInfo(){try{await navigator.clipboard.writeText(diagnostics);status('結果をコピーしたよ。チャットに貼り付けてね。')}catch{status('コピーできなければ「撮影情報」のスクショでも大丈夫だよ。')}}
+$('start').addEventListener('click',startCamera);
+$('stop').addEventListener('click',()=>stopCamera());
+shutter.addEventListener('click',()=>{if(shooting==='photo')takePhoto();else if(recording)stopRecording();else startRecording()});
+$('photoMode').addEventListener('click',()=>switchMode('photo'));
+$('videoMode').addEventListener('click',()=>switchMode('video'));
+cameraSelect.addEventListener('change',async()=>{if(stream)await startCamera();else status('カメラを選んだよ。起動して試してね。')});
+$('quality').addEventListener('change',async()=>{if(stream)await startCamera()});
+$('refresh').addEventListener('click',async()=>{let n=await listDevices();status(`${n}個のカメラ候補が見つかったよ。超広角・望遠が一覧に出るか確認してね。`)});
+$('grid').addEventListener('click',()=>{let on=view.classList.toggle('grid-on');$('grid').textContent=`グリッド：${on?'ON':'OFF'}`});
+for(const b of document.querySelectorAll('[data-zoom]'))b.addEventListener('click',()=>changeZoom(Number(b.dataset.zoom)));
+shareBtn.addEventListener('click',shareFile);downloadBtn.addEventListener('click',downloadFile);$('copy').addEventListener('click',copyInfo);
+window.addEventListener('pagehide',()=>{if(recording)stopRecording();if(stream)stopTracks();if(micStream){micStream.getTracks().forEach(t=>t.stop());micStream=null}});
+setButtons();
+</script>
 </body>
 </html>
