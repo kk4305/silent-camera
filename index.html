@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Silent Camera">
-<title>Silent Camera v6</title>
+<title>Silent Camera v6.1</title>
 <style>
 :root{color-scheme:dark;--bg:#0b101a;--panel:#192536;--fg:#f5f7fa;--muted:#b9c7d6;--accent:#b5e7ff;--line:#2e3b51}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
@@ -15,9 +15,11 @@ button,select,input{font:inherit}button,select{min-height:42px;border:1px solid 
 .app{max-width:650px;min-height:100svh;margin:auto;padding:calc(env(safe-area-inset-top) + 10px) 12px calc(env(safe-area-inset-bottom) + 22px);display:flex;flex-direction:column;gap:10px}
 header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1{font-size:19px;margin:0}.tag{font-size:11px;border:1px solid #346f58;border-radius:30px;background:#153a2c;color:#bef0d5;padding:6px 8px;white-space:nowrap}
 .modebar{display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#111b2a;border-radius:14px;padding:5px}.modebar button{border:0;background:transparent}.modebar .active{background:#344863;color:white}
-.view{position:relative;overflow:hidden;border-radius:17px;background:#02060b;border:1px solid var(--line);width:100%;aspect-ratio:3/4;max-height:58svh;display:flex;justify-content:center;align-items:center}
-.view.video-view{aspect-ratio:9/16;max-height:64svh}
-#live{display:none;width:100%;height:100%;object-fit:cover;transform-origin:center center}.view.running #live{display:block}.view.show-entire #live{object-fit:contain}.placeholder{position:absolute;text-align:center;color:var(--muted);line-height:1.8;padding:20px}.view.running .placeholder{display:none}
+/* v6.1: viewport and video have the same portrait ratio. Avoid max-height squeezing the flex child. */
+.view{position:relative;overflow:hidden;border-radius:17px;background:#02060b;border:1px solid var(--line);width:min(100%,calc(75svh - 153.75px));aspect-ratio:3/4;height:auto;max-height:none;min-height:0;flex:0 0 auto;margin-inline:auto;display:block;isolation:isolate}
+.view.video-view{width:min(100%,calc(56.25svh - 115.3125px));aspect-ratio:9/16;height:auto;max-height:none}
+/* Independent of intrinsic video metadata and iOS app-resume layout changes. */
+#live{display:none;position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-width:none;max-height:none;object-fit:cover;object-position:center;transform-origin:center center;flex:none}.view.running #live{display:block}.view.show-entire #live{object-fit:contain}.placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);line-height:1.8;padding:20px}.view.running .placeholder{display:none}
 .overlay{position:absolute;left:10px;top:10px;background:#000a;padding:5px 8px;border-radius:8px;font-size:12px;font-variant-numeric:tabular-nums;display:none}.view.running .overlay{display:block}
 .rec-tag{position:absolute;right:10px;top:10px;display:none;align-items:center;gap:6px;background:#230607dd;color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-variant-numeric:tabular-nums}.rec-tag.on{display:flex}.red-dot{width:9px;height:9px;background:#ff4b55;border-radius:50%}
 .gridlines{position:absolute;inset:0;display:none;pointer-events:none;background-image:linear-gradient(to right,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%),linear-gradient(to bottom,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%)}.view.grid-on.running .gridlines{display:block}
@@ -71,7 +73,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 </head>
 <body>
 <main class="app">
-<header><h1>📷 Silent Camera</h1><span class="tag">v6 · 外部送信なし</span></header>
+<header><h1>📷 Silent Camera</h1><span class="tag">v6.1 · 外部送信なし</span></header>
 <div class="modebar" role="group" aria-label="撮影タイプ"><button id="photoMode" class="active" type="button">📷 写真</button><button id="videoMode" type="button">🎥 動画</button></div>
 <section id="view" class="view" aria-label="カメラ映像">
 <video id="live" autoplay playsinline muted></video>
@@ -104,7 +106,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 <div id="status" class="status" role="status">Safariでカメラへのアクセスを許可してね。</div>
 <section class="diagnostics"><div><strong>撮影情報</strong><small id="diagnosticText">起動後にカメラ名・映像解像度・ズーム方式などを確認できるよ。</small></div><button type="button" id="copy" disabled>結果をコピー</button></section>
 <section class="preview" id="preview"><img id="photo" alt="撮影した写真のプレビュー"><video id="clip" controls playsinline preload="metadata"></video><div class="preview-info"><strong id="previewTitle">撮影できたよ！</strong><small id="fileInfo"></small><div class="preview-actions"><button type="button" id="share" class="primary">保存・共有</button><button type="button" id="download">ファイル保存</button></div></div></section>
-<aside class="hint"><b>カメラの切り替え：</b>「レンズ」から個別の超広角・標準・望遠カメラを選べるよ（Safariの候補に表示されたものだけ）。下の「使用カメラ」では他の候補も選べるの。プレビュー内の倍率変更は、光学レンズ切替とは限らないよ。<br><b>録画方式：</b>基本は直接録画を選んでね。保存解像度はiPhoneの「写真」アプリの情報でも確認できるよ。Canvas録画は比較用で、端末によってはフレーム落ちすることがあるよ。<br><b>入力解像度：</b>Safariへの希望値で、保存画質は別。録画後の実解像度を確認してね。<br><b>プレビュー：</b>「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
+<aside class="hint"><b>カメラの切り替え：</b>「レンズ」から個別の超広角・標準・望遠カメラを選べるよ（Safariの候補に表示されたものだけ）。下の「使用カメラ」では他の候補も選べるの。プレビュー内の倍率変更は、光学レンズ切替とは限らないよ。<br><b>録画方式：</b>基本は直接録画を選んでね。保存解像度はiPhoneの「写真」アプリの情報でも確認できるよ。Canvas録画は比較用で、端末によってはフレーム落ちすることがあるよ。<br><b>入力解像度：</b>Safariへの希望値で、保存画質は別。録画後の実解像度を確認してね。<br><b>プレビュー：</b>v6.1では写真3:4、動画9:16の縦長画面に自動調整するよ。アプリ復帰時も表示サイズを維持する設計にしたよ。「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
 </main>
 <script>
 'use strict';
@@ -116,6 +118,7 @@ let stream=null, micStream=null, recorder=null, videoChunks=[], recStart=0, time
 let shooting='photo', selectedZoom=1, zoomMethod='なし', recording=false;
 let currentFile=null, currentURL=null, diagnostics='', knownDevices=[], startBusy=false;
 let canvasStream=null, recCanvas=null, frameRequest=0, drawnFrames=0, recordingMethod='direct', lastCanvasDims='なし';
+let wantCamera=false, resumePending=false, resumeTimer=0;
 const status = s => $('status').textContent=s;
 const mp=(w,h)=>((w*h)/1e6).toFixed(2);
 const stamp=()=>{let d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,'0')).join('')}`};
@@ -165,7 +168,7 @@ async function chooseLens(type){
 }
 function canZoom(value){const z=caps().zoom;return z&&Number.isFinite(z.min)&&Number.isFinite(z.max)&&value>=z.min&&value<=z.max;}
 function stopTracks(){ if(stream){for(const t of stream.getTracks())t.stop()}stream=null; if(micStream){for(const t of micStream.getTracks())t.stop()}micStream=null;live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';}
-function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}stopTracks();setButtons();if(show)status('カメラを停止したよ。');}
+function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}wantCamera=false;clearTimeout(resumeTimer);stopTracks();setButtons();if(show)status('カメラを停止したよ。');}
 function qualityConstraints(){const high=$('quality').value==='high';const isVideo=shooting==='video',portrait=isVideo&&$('videoRes').value==='portrait';return {width:{ideal:isVideo?(portrait?1080:1920):high?4032:1920},height:{ideal:isVideo?(portrait?1920:1080):high?3024:1440},frameRate:{ideal:isVideo?30:30,max:30}}}
 function requestedCamera(){const v=cameraSelect.value;return v.startsWith('device:')?{deviceId:{exact:v.slice(7)}}:{facingMode:{ideal:v==='front'?'user':'environment'}};}
 async function listDevices(){
@@ -192,7 +195,7 @@ async function startCamera(){
     const selector=requestedCamera();
     stream=await navigator.mediaDevices.getUserMedia({audio:false,video:selector});
   }
-  live.srcObject=stream;await live.play();view.classList.add('running');
+  live.srcObject=stream;await live.play();view.classList.add('running');wantCamera=true;refreshPreviewSize();
   // 標準カメラ初回許可後に初めて全カメラの表示名が得られる場合がある。
   const n=await listDevices();
   // 実際に取得したトラックとUI選択が一致している場合はそのまま維持。
@@ -200,11 +203,11 @@ async function startCamera(){
   if(settings.deviceId&&cameraSelect.value.startsWith('device:')===false){ /* 選択は「標準」のまま */ }
   $('resolution').textContent=`${live.videoWidth}×${live.videoHeight} (${mp(live.videoWidth,live.videoHeight)}MP)`;
   selectedZoom=1;zoomMethod='なし';updateZoomButtons();
-  diagnostics=`Silent Camera v6\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
+  diagnostics=`Silent Camera v6.1\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
   $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／${caps().zoom?'ズームAPI対応':'ズームAPI非公開'}`;
   $('copy').disabled=false;
   status('起動できたよ！ カメラ候補の一覧とズームボタンを確認してね。');
- }catch(e){stopTracks();status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
+ }catch(e){stopTracks();wantCamera=false;status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
  finally{startBusy=false;setButtons()}
 }
 function updateZoomButtons(){for(const b of document.querySelectorAll('[data-zoom]'))b.classList.toggle('selected',Number(b.dataset.zoom)===selectedZoom);setButtons()}
@@ -351,6 +354,39 @@ async function switchMode(next){if(recording)return;shooting=next;$('photoMode')
 async function shareFile(){if(!currentFile)return;try{if(!navigator.share||navigator.canShare&&!navigator.canShare({files:[currentFile]}))throw Error('共有未対応');await navigator.share({files:[currentFile]});status('共有メニューを閉じたよ。写真・ビデオが保存されたか確認してね。')}catch(e){if(e.name!=='AbortError')status('共有できなかったよ。「ファイル保存」を試してね。')}}
 function downloadFile(){if(!currentURL||!currentFile)return;let a=document.createElement('a');a.href=currentURL;a.download=currentFile.name;document.body.appendChild(a);a.click();a.remove();status('Safariの「ダウンロード」フォルダを確認してね。')}
 async function copyInfo(){try{await navigator.clipboard.writeText(diagnostics);status('結果をコピーしたよ。チャットに貼り付けてね。')}catch{status('コピーできなければ「撮影情報」のスクショでも大丈夫だよ。')}}
+
+// Re-check the layout and the real camera-frame dimensions after iOS suspends Safari.
+function refreshPreviewSize(){
+ if(!stream)return;
+ const w=live.videoWidth,h=live.videoHeight;
+ if(w&&h)$('resolution').textContent=`${w}×${h} (${mp(w,h)}MP)`;
+}
+async function resumePreview(){
+ if(document.visibilityState==='hidden'||!wantCamera||recording||startBusy||resumePending)return;
+ resumePending=true;
+ try{
+  const vtrack=track();
+  if(!vtrack||vtrack.readyState!=='live'||vtrack.muted){
+   await startCamera();
+  }else{
+   try{if(live.paused||live.readyState<2)await live.play()}catch{await startCamera()}
+   refreshPreviewSize();
+  }
+ }finally{resumePending=false}
+}
+function scheduleResume(){
+ if(!wantCamera||document.visibilityState==='hidden')return;
+ clearTimeout(resumeTimer);
+ // Give iOS a brief moment to reactivate the camera before requesting playback.
+ resumeTimer=setTimeout(resumePreview,250);
+}
+live.addEventListener('loadedmetadata',refreshPreviewSize);
+live.addEventListener('resize',refreshPreviewSize);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleResume()});
+window.addEventListener('pageshow',scheduleResume);
+window.addEventListener('focus',scheduleResume);
+window.addEventListener('orientationchange',()=>requestAnimationFrame(refreshPreviewSize));
+
 $('start').addEventListener('click',startCamera);
 $('stop').addEventListener('click',()=>stopCamera());
 shutter.addEventListener('click',()=>{if(shooting==='photo')takePhoto();else if(recording)stopRecording();else startRecording()});
