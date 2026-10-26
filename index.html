@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Silent Camera">
-<title>Silent Camera v6.1</title>
+<title>Silent Camera v6.2</title>
 <style>
 :root{color-scheme:dark;--bg:#0b101a;--panel:#192536;--fg:#f5f7fa;--muted:#b9c7d6;--accent:#b5e7ff;--line:#2e3b51}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",sans-serif}
@@ -19,7 +19,14 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 .view{position:relative;overflow:hidden;border-radius:17px;background:#02060b;border:1px solid var(--line);width:min(100%,calc(75svh - 153.75px));aspect-ratio:3/4;height:auto;max-height:none;min-height:0;flex:0 0 auto;margin-inline:auto;display:block;isolation:isolate}
 .view.video-view{width:min(100%,calc(56.25svh - 115.3125px));aspect-ratio:9/16;height:auto;max-height:none}
 /* Independent of intrinsic video metadata and iOS app-resume layout changes. */
-#live{display:none;position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-width:none;max-height:none;object-fit:cover;object-position:center;transform-origin:center center;flex:none}.view.running #live{display:block}.view.show-entire #live{object-fit:contain}.placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);line-height:1.8;padding:20px}.view.running .placeholder{display:none}
+#live{display:none;position:absolute;inset:0;width:100%;height:100%;min-width:0;min-height:0;max-width:none;max-height:none;object-fit:cover;object-position:center;transform-origin:center center;flex:none}/* iOS WebKit can render the native <video> picture smaller after lens changes.
+   Keep it decoding offscreen (opacity, not display:none), draw its frames to a fixed-size canvas. */
+.view.running #live{display:block;opacity:.001;pointer-events:none}
+.view.preview-fallback.running #live{opacity:1}
+.view.show-entire #live{object-fit:contain}
+#monitor{position:absolute;inset:0;width:100%;height:100%;display:none;pointer-events:none}
+.view.running #monitor{display:block}
+.view.preview-fallback #monitor{display:none}.placeholder{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:var(--muted);line-height:1.8;padding:20px}.view.running .placeholder{display:none}
 .overlay{position:absolute;left:10px;top:10px;background:#000a;padding:5px 8px;border-radius:8px;font-size:12px;font-variant-numeric:tabular-nums;display:none}.view.running .overlay{display:block}
 .rec-tag{position:absolute;right:10px;top:10px;display:none;align-items:center;gap:6px;background:#230607dd;color:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-variant-numeric:tabular-nums}.rec-tag.on{display:flex}.red-dot{width:9px;height:9px;background:#ff4b55;border-radius:50%}
 .gridlines{position:absolute;inset:0;display:none;pointer-events:none;background-image:linear-gradient(to right,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%),linear-gradient(to bottom,transparent 33.25%,#ffffff6e 33.33%,#ffffff6e 33.46%,transparent 33.52%,transparent 66.52%,#ffffff6e 66.59%,#ffffff6e 66.73%,transparent 66.8%)}.view.grid-on.running .gridlines{display:block}
@@ -73,10 +80,11 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 </head>
 <body>
 <main class="app">
-<header><h1>📷 Silent Camera</h1><span class="tag">v6.1 · 外部送信なし</span></header>
+<header><h1>📷 Silent Camera</h1><span class="tag">v6.2 · 外部送信なし</span></header>
 <div class="modebar" role="group" aria-label="撮影タイプ"><button id="photoMode" class="active" type="button">📷 写真</button><button id="videoMode" type="button">🎥 動画</button></div>
 <section id="view" class="view" aria-label="カメラ映像">
 <video id="live" autoplay playsinline muted></video>
+<canvas id="monitor" aria-hidden="true"></canvas>
 <div class="placeholder">📸<br>「カメラを起動」を押してね</div>
 <div class="overlay" id="resolution"></div>
 <div class="rec-tag" id="recTag"><span class="red-dot"></span><span id="recordTime">00:00</span></div>
@@ -106,12 +114,12 @@ header{display:flex;align-items:center;justify-content:space-between;gap:10px}h1
 <div id="status" class="status" role="status">Safariでカメラへのアクセスを許可してね。</div>
 <section class="diagnostics"><div><strong>撮影情報</strong><small id="diagnosticText">起動後にカメラ名・映像解像度・ズーム方式などを確認できるよ。</small></div><button type="button" id="copy" disabled>結果をコピー</button></section>
 <section class="preview" id="preview"><img id="photo" alt="撮影した写真のプレビュー"><video id="clip" controls playsinline preload="metadata"></video><div class="preview-info"><strong id="previewTitle">撮影できたよ！</strong><small id="fileInfo"></small><div class="preview-actions"><button type="button" id="share" class="primary">保存・共有</button><button type="button" id="download">ファイル保存</button></div></div></section>
-<aside class="hint"><b>カメラの切り替え：</b>「レンズ」から個別の超広角・標準・望遠カメラを選べるよ（Safariの候補に表示されたものだけ）。下の「使用カメラ」では他の候補も選べるの。プレビュー内の倍率変更は、光学レンズ切替とは限らないよ。<br><b>録画方式：</b>基本は直接録画を選んでね。保存解像度はiPhoneの「写真」アプリの情報でも確認できるよ。Canvas録画は比較用で、端末によってはフレーム落ちすることがあるよ。<br><b>入力解像度：</b>Safariへの希望値で、保存画質は別。録画後の実解像度を確認してね。<br><b>プレビュー：</b>v6.1では写真3:4、動画9:16の縦長画面に自動調整するよ。アプリ復帰時も表示サイズを維持する設計にしたよ。「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
+<aside class="hint"><b>カメラの切り替え：</b>「レンズ」から個別の超広角・標準・望遠カメラを選べるよ（Safariの候補に表示されたものだけ）。下の「使用カメラ」では他の候補も選べるの。プレビュー内の倍率変更は、光学レンズ切替とは限らないよ。<br><b>録画方式：</b>基本は直接録画を選んでね。保存解像度はiPhoneの「写真」アプリの情報でも確認できるよ。Canvas録画は比較用で、端末によってはフレーム落ちすることがあるよ。<br><b>入力解像度：</b>Safariへの希望値で、保存画質は別。録画後の実解像度を確認してね。<br><b>プレビュー：</b>v6.2ではSafariの表示縮小を避けるため、プレビューのみCanvas描画に切り替えたよ。写真3:4、動画9:16の枠を維持するの。「表示：画面いっぱい」は画面の端を切り取って見せる場合があるよ。録画データ自体をトリミングする機能ではないよ。<br><b>動画：</b>赤いボタンで録画開始／停止。マイクONなら録音もするよ。形式はSafari側の対応状況でMP4などから自動選択。長時間録画では端末の空き容量・メモリに注意してね。<br><b>プライバシー：</b>撮影した写真・動画はサーバーにアップロードせず、端末内で処理するよ。</aside>
 </main>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
-const live = $('live'), view=$('view'), cameraSelect=$('cameraSelect');
+const live = $('live'), view=$('view'), monitor=$('monitor'), cameraSelect=$('cameraSelect');
 const startBtn=$('start'),stopBtn=$('stop'),shutter=$('shutter');
 const shareBtn=$('share'),downloadBtn=$('download');
 let stream=null, micStream=null, recorder=null, videoChunks=[], recStart=0, timer=null;
@@ -119,6 +127,7 @@ let shooting='photo', selectedZoom=1, zoomMethod='なし', recording=false;
 let currentFile=null, currentURL=null, diagnostics='', knownDevices=[], startBusy=false;
 let canvasStream=null, recCanvas=null, frameRequest=0, drawnFrames=0, recordingMethod='direct', lastCanvasDims='なし';
 let wantCamera=false, resumePending=false, resumeTimer=0;
+let previewFrame=0, previewLast=0, previewFailures=0, previewSize='', previewFrames=0;
 const status = s => $('status').textContent=s;
 const mp=(w,h)=>((w*h)/1e6).toFixed(2);
 const stamp=()=>{let d=new Date();return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}_${[d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,'0')).join('')}`};
@@ -167,18 +176,70 @@ async function chooseLens(type){
  if(stream)status(`${type==='ultra'?'超広角':type==='tele'?'望遠':'標準'}カメラに切り替えたよ（実際のレンズはiPhoneで確認してね）。`);
 }
 function canZoom(value){const z=caps().zoom;return z&&Number.isFinite(z.min)&&Number.isFinite(z.max)&&value>=z.min&&value<=z.max;}
-function stopTracks(){ if(stream){for(const t of stream.getTracks())t.stop()}stream=null; if(micStream){for(const t of micStream.getTracks())t.stop()}micStream=null;live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';}
+function stopPreviewPump(){
+ if(previewFrame)cancelAnimationFrame(previewFrame);
+ previewFrame=0;previewLast=0;previewFailures=0;previewFrames=0;previewSize='';
+ view.classList.remove('preview-fallback');
+}
+function drawPreview(now){
+ previewFrame=0;
+ if(!stream || !view.classList.contains('running'))return;
+ // Use only preview-size pixels. Recording and photos still use original camera stream.
+ if(!document.hidden && live.readyState>=2 && live.videoWidth && live.videoHeight && (!previewLast || now-previewLast>=33)){
+  try{
+   const rect=view.getBoundingClientRect();
+   const ratio=Math.min(window.devicePixelRatio||1,1.5);
+   const w=Math.max(1,Math.round(rect.width*ratio)),h=Math.max(1,Math.round(rect.height*ratio));
+   if(monitor.width!==w || monitor.height!==h){monitor.width=w;monitor.height=h;previewSize=`${w}×${h}`;}
+   const ctx=monitor.getContext('2d',{alpha:false});
+   if(!ctx)throw Error('canvas unsupported');
+   ctx.fillStyle='#000';ctx.fillRect(0,0,w,h);
+   const vw=live.videoWidth,vh=live.videoHeight;
+   // Explicit canvas crop avoids Safari's unreliable video object-fit compositor.
+   let sx=0,sy=0,sw=vw,sh=vh;
+   const ratioSrc=vw/vh,ratioDest=w/h,entire=view.classList.contains('show-entire');
+   if(!entire){
+    if(ratioSrc>ratioDest){sw=vh*ratioDest;sx=(vw-sw)/2;}
+    else{sh=vw/ratioDest;sy=(vh-sh)/2;}
+   }
+   if(zoomMethod==='写真用デジタル拡大' && selectedZoom>1){
+    const zoom=selectedZoom,nsw=sw/zoom,nsh=sh/zoom;
+    sx+=(sw-nsw)/2;sy+=(sh-nsh)/2;sw=nsw;sh=nsh;
+   }
+   if(entire){
+    const factor=Math.min(w/sw,h/sh),dw=sw*factor,dh=sh*factor;
+    ctx.drawImage(live,sx,sy,sw,sh,(w-dw)/2,(h-dh)/2,dw,dh);
+   }else ctx.drawImage(live,sx,sy,sw,sh,0,0,w,h);
+   previewFrames++;previewLast=now;previewFailures=0;
+   view.classList.remove('preview-fallback');
+  }catch(e){
+   previewFailures++;
+   if(previewFailures===20){view.classList.add('preview-fallback');console.warn('Preview canvas fallback',e);}
+  }
+ }
+ previewFrame=requestAnimationFrame(drawPreview);
+}
+function startPreviewPump(){
+ stopPreviewPump();
+ // Schedule video rendering after live.play(). Crop and display the frame ourselves.
+ previewFrame=requestAnimationFrame(drawPreview);
+}
+function stopTracks(){ stopPreviewPump();if(stream){for(const t of stream.getTracks())t.stop()}stream=null; if(micStream){for(const t of micStream.getTracks())t.stop()}micStream=null;live.pause();live.srcObject=null;view.classList.remove('running');live.style.transform='none';}
 function stopCamera(show=true){if(recording){status('録画中は先に録画を停止してね。');return;}wantCamera=false;clearTimeout(resumeTimer);stopTracks();setButtons();if(show)status('カメラを停止したよ。');}
 function qualityConstraints(){const high=$('quality').value==='high';const isVideo=shooting==='video',portrait=isVideo&&$('videoRes').value==='portrait';return {width:{ideal:isVideo?(portrait?1080:1920):high?4032:1920},height:{ideal:isVideo?(portrait?1920:1080):high?3024:1440},frameRate:{ideal:isVideo?30:30,max:30}}}
 function requestedCamera(){const v=cameraSelect.value;return v.startsWith('device:')?{deviceId:{exact:v.slice(7)}}:{facingMode:{ideal:v==='front'?'user':'environment'}};}
 async function listDevices(){
  try{
   const selected=cameraSelect.value;
+  const oldLabel=knownDevices.find(d=>'device:'+d.deviceId===selected)?.label||'';
   knownDevices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput'&&d.deviceId);
   cameraSelect.innerHTML='<option value="rear">背面（標準）</option><option value="front">前面（自撮り）</option>';
   knownDevices.forEach((d,i)=>{const opt=document.createElement('option');opt.value='device:'+d.deviceId;opt.textContent=d.label?`📷 ${d.label}`:`カメラ候補 ${i+1}`;cameraSelect.appendChild(opt)});
   if([...cameraSelect.options].some(o=>o.value===selected))cameraSelect.value=selected;
-  else cameraSelect.value='rear';
+  else if(oldLabel){
+   const matched=knownDevices.find(d=>d.label===oldLabel);
+   cameraSelect.value=matched?'device:'+matched.deviceId:'rear';
+  }else cameraSelect.value='rear';
   setLensButtons();
   return knownDevices.length;
  }catch{return 0}
@@ -195,7 +256,7 @@ async function startCamera(){
     const selector=requestedCamera();
     stream=await navigator.mediaDevices.getUserMedia({audio:false,video:selector});
   }
-  live.srcObject=stream;await live.play();view.classList.add('running');wantCamera=true;refreshPreviewSize();
+  live.srcObject=stream;await live.play();view.classList.add('running');startPreviewPump();wantCamera=true;refreshPreviewSize();
   // 標準カメラ初回許可後に初めて全カメラの表示名が得られる場合がある。
   const n=await listDevices();
   // 実際に取得したトラックとUI選択が一致している場合はそのまま維持。
@@ -203,8 +264,8 @@ async function startCamera(){
   if(settings.deviceId&&cameraSelect.value.startsWith('device:')===false){ /* 選択は「標準」のまま */ }
   $('resolution').textContent=`${live.videoWidth}×${live.videoHeight} (${mp(live.videoWidth,live.videoHeight)}MP)`;
   selectedZoom=1;zoomMethod='なし';updateZoomButtons();
-  diagnostics=`Silent Camera v6.1\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
-  $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／${caps().zoom?'ズームAPI対応':'ズームAPI非公開'}`;
+  diagnostics=`Silent Camera v6.2\n撮影タイプ：${shooting==='video'?'動画':'写真'}\n選択：${cameraName()}\n検出カメラ数：${n}\n候補：${knownDevices.map(d=>d.label||'(名称なし)').join(' / ')||'なし'}\n映像：${live.videoWidth}×${live.videoHeight}（${mp(live.videoWidth,live.videoHeight)}MP）\ntrack：${settings.width||'?'}×${settings.height||'?'}\nSafari公開zoom：${caps().zoom?`${caps().zoom.min}～${caps().zoom.max}`:'なし'}`;
+  $('diagnosticText').textContent=`${live.videoWidth}×${live.videoHeight}／候補${n}個／Canvasプレビュー`;
   $('copy').disabled=false;
   status('起動できたよ！ カメラ候補の一覧とズームボタンを確認してね。');
  }catch(e){stopTracks();wantCamera=false;status(e.name==='NotAllowedError'?'カメラが許可されていないよ。Safariのサイト設定を確認してね。':`起動失敗：${e.name||e.message}`)}
@@ -371,6 +432,7 @@ async function resumePreview(){
   }else{
    try{if(live.paused||live.readyState<2)await live.play()}catch{await startCamera()}
    refreshPreviewSize();
+   if(stream)startPreviewPump();
   }
  }finally{resumePending=false}
 }
